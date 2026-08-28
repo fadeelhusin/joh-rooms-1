@@ -1,0 +1,76 @@
+{
+ "date": "2026-08-28",
+ "source": "daily_progress_demo.xlsx",
+ "rooms": {
+  "5.01.TOI.03": {
+   "Civil/Structural": 41,
+   "Mechanical": 27,
+   "Electrical": 67,
+   "Plumbing/PH": 21,
+   "Fire Protection": 58,
+   "Finishes": 44,
+   "Acoustic": 20,
+   "Snagging": 56
+  },
+  "5.01.FOY.01": {
+   "Civil/Structural": 18,
+   "Mechanical": 50,
+   "Electrical": 21,
+   "Plumbing/PH": 22,
+   "Fire Protection": 49,
+   "Finishes": 81,
+   "Acoustic": 25,
+   "Snagging": 33
+  },
+  "2.00.FBS.01": {
+   "Civil/Structural": 65,
+   "Mechanical": 91,
+   "Electrical": 61,
+   "Plumbing/PH": 47,
+   "Fire Protection": 93,
+   "Finishes": 19,
+   "Acoustic": 84,
+   "Snagging": 38
+  },
+  "5.04.COR.02": {
+   "Civil/Structural": 27,
+   "Mechanical": 24,
+   "Electrical": 40,
+   "Plumbing/PH": 80,
+   "Fire Protection": 29,
+   "Finishes": 62,
+   "Acoustic": 66,
+   "Snagging": 45
+  },
+  "3.01.PER.01": {
+   "Civil/Structural": 59,
+   "Mechanical": 20,
+   "Electrical": 20,
+   "Plumbing/PH": 31,
+   "Fire Protection": 69,
+   "Finishes": 49,
+   "Acoustic": 40,
+   "Snagging": 62
+  },
+  "3.00.ADM.01": {
+   "Civil/Structural": 51,
+   "Mechanical": 39,
+   "Electrical": 79,
+   "Plumbing/PH": 71,
+   "Fire Protection": 35,
+   "Finishes": 61,
+   "Acoustic": 57,
+   "Snagging": 85
+  },
+  "5.04.TEC.01": {
+   "Civil/Structural": 73,
+   "Mechanical": 38,
+   "Electrical": 93,
+   "Plumbing/PH": 24,
+   "Fire Protection": 48,
+   "Finishes": 76,
+   "Acoustic": 27,
+   "Snagging": 54
+  }
+ }
+}

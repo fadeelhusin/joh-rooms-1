@@ -18,7 +18,11 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   const isApp = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('sw.js');
-  if (isApp) {
+  const isData = url.pathname.indexOf('/data/') >= 0;
+  if (isData) {
+    e.respondWith(fetch(e.request).then(r => { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); return r; })
+      .catch(() => caches.match(e.request).then(h => h || new Response('{}', {'headers':{'Content-Type':'application/json'}}))));
+  } else if (isApp) {
     e.respondWith(fetch(e.request).then(r => { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); return r; })
       .catch(() => caches.match(e.request).then(h => h || caches.match('./index.html'))));
   } else {
