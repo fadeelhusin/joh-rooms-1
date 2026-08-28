@@ -11,19 +11,34 @@ var q, fl, fa;
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
 function row2(k, v) { return '<tr><td>' + esc(k) + '</td><td>' + esc(v == null || v === '' ? '–' : v) + '</td></tr>'; }
 
-/* ---------- boot ---------- */
-Promise.all([
-  fetch('data/rooms.json').then(r => r.json()),
-  fetch('data/materials.json').then(r => r.json()),
-  fetch('data/meta.json').then(r => r.json()),
-]).then(function (res) {
-  ROOMS = res[0]; MATERIALS = res[1]; META = res[2];
-  MATERIALS.forEach(function (m) { MAT_BY_CODE[m.code] = m; });
-  LEVELS = META.levels;
-  boot();
-}).catch(function (e) {
-  document.getElementById('app').innerHTML = '<div class="emptystate"><div class="big">⚠️</div>Could not load room data.<br><span class="small">' + esc(e.message) + '</span></div>';
-});
+/* ---------- boot ----------
+   Data is embedded in data.js (ROOMS_DATA / MATERIALS_DATA / META_DATA) so
+   this app runs by simply double-clicking index.html — no server, no
+   GitHub Pages, nothing to fetch(). Falls back to fetching the JSON files
+   if those globals aren't present (e.g. when hosted and data.js is
+   intentionally removed in favour of separate data/*.json files). */
+function startApp() {
+  if (typeof ROOMS_DATA !== 'undefined') {
+    ROOMS = ROOMS_DATA; MATERIALS = MATERIALS_DATA; META = META_DATA;
+    MATERIALS.forEach(function (m) { MAT_BY_CODE[m.code] = m; });
+    LEVELS = META.levels;
+    boot();
+    return;
+  }
+  Promise.all([
+    fetch('data/rooms.json').then(r => r.json()),
+    fetch('data/materials.json').then(r => r.json()),
+    fetch('data/meta.json').then(r => r.json()),
+  ]).then(function (res) {
+    ROOMS = res[0]; MATERIALS = res[1]; META = res[2];
+    MATERIALS.forEach(function (m) { MAT_BY_CODE[m.code] = m; });
+    LEVELS = META.levels;
+    boot();
+  }).catch(function (e) {
+    document.getElementById('app').innerHTML = '<div class="emptystate"><div class="big">⚠️</div>Could not load room data.<br><span class="small">' + esc(e.message) + '</span></div>';
+  });
+}
+startApp();
 
 function boot() {
   q = document.getElementById('q'); fl = document.getElementById('fl'); fa = document.getElementById('fa');

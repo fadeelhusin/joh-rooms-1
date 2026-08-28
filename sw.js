@@ -7,6 +7,7 @@ const ASSETS = [
   "./styles.css",
   "./viewer.js",
   "./app.js",
+  "./data.js",
   "./vendor/pdf.min.js",
   "./vendor/pdf.worker.min.js",
   "./data/rooms.json",

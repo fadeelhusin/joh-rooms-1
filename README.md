@@ -4,6 +4,22 @@ Offline interior-design storyboard for the Jeddah Opera House FF&E / finishing
 programme. A installable, fully offline mobile web app (PWA) built on top of
 the original `joh-rooms-1` room reference.
 
+## Just want it to work right now?
+
+**Double-click `index.html`.** That's it — no server, no upload, no GitHub
+needed. All room and material data is embedded directly in `data.js`, so the
+app runs straight off your disk in any modern browser (Chrome, Edge, Safari).
+Keep the whole folder together (`index.html` needs `data.js`, `app.js`,
+`viewer.js`, `styles.css`, `plans/`, `png/`, `materials/`, `docs/`,
+`vendor/` alongside it) and it works exactly the same on a phone if you copy
+the folder onto it and open `index.html` in the phone's browser.
+
+The only thing that needs real hosting (GitHub Pages, any web server) is
+"Add to Home Screen" installability and the offline-cache service worker —
+neither is required for the app to work; opening the file directly already
+gives you everything (search, tap-to-locate plans, storyboards, material
+library) with zero setup.
+
 ## What's in it
 
 - **988 rooms**, searchable by room number, name, level or type.
