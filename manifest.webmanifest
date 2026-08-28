@@ -1,12 +1,12 @@
 {
-  "name": "JOH Room Assistant",
-  "short_name": "Rooms",
-  "description": "Offline FF&E room reference - Jeddah Opera House",
+  "name": "JOH Room Storyboard",
+  "short_name": "Storyboard",
+  "description": "Offline interior design storyboard — room information, finishing schedules, material mockups & FF&E for Jeddah Opera House",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#1F4E79",
-  "theme_color": "#1F4E79",
+  "background_color": "#2a241d",
+  "theme_color": "#2a241d",
   "icons": [
     {
       "src": "icon.png",
