@@ -1,11 +1,12 @@
-const CACHE = 'joh-rooms-v4';
+const CACHE = 'joh-rooms-v5';
 const ASSETS = [
   './','./index.html','./manifest.webmanifest','./icon.png',
   './vendor/pdf.min.js','./vendor/pdf.worker.min.js',
   './plans/B2.pdf','./plans/B1.pdf','./plans/00.pdf','./plans/01.pdf','./plans/02.pdf',
   './plans/03.pdf','./plans/04.pdf','./plans/05.pdf','./plans/06.pdf',
   './png/B2.png','./png/B1.png','./png/00.png','./png/01.png','./png/02.png',
-  './png/03.png','./png/04.png','./png/05.png','./png/06.png'
+  './png/03.png','./png/04.png','./png/05.png','./png/06.png',
+  './refs/OPE_Toilets.pdf','./refs/OPE_Overall_Ceiling.pdf'
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
