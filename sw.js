@@ -1,4 +1,4 @@
-const CACHE = 'joh-rooms-v1';
+const CACHE = 'joh-rooms-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -8,13 +8,22 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(
-    caches.match(e.request, {ignoreSearch: true}).then(hit => hit || fetch(e.request).then(resp => {
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return;
+  const isApp = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+  if (isApp) {
+    // network-first: fresh app when online (304 revalidation is cheap), cache when offline
+    e.respondWith(fetch(e.request).then(resp => {
       const copy = resp.clone();
-      if (new URL(e.request.url).origin === location.origin) {
-        caches.open(CACHE).then(c => c.put(e.request, copy));
-      }
+      caches.open(CACHE).then(c => c.put(e.request, copy));
       return resp;
-    }).catch(() => caches.match('./index.html')))
-  );
+    }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html'))));
+  } else {
+    // cache-first for static assets (icon, manifest)
+    e.respondWith(caches.match(e.request, {ignoreSearch: true}).then(hit => hit || fetch(e.request).then(resp => {
+      const copy = resp.clone();
+      caches.open(CACHE).then(c => c.put(e.request, copy));
+      return resp;
+    })));
+  }
 });
