@@ -1,0 +1,14 @@
+{
+  "name": "JOH Finishing Manager",
+  "short_name": "Finishing Mgr",
+  "description": "Offline finishing-manager reference for Jeddah Opera House — room info, finishing schedules, construction sequence, clearance checklists, and full-project search",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1c2b3a",
+  "theme_color": "#1c2b3a",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1c2b3a">
+<link rel="apple-touch-icon" href="icon.png">
+<title>JOH Finishing Manager</title>
+<link rel="stylesheet" href="styles.css">
+<script src="vendor/pdf.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>Finishing Manager</h1><span class="tag">Jeddah Opera House</span></div>
+  <div id="searchbar">
+    <input id="q" type="search" placeholder="Room, material, or ask a question…" autocomplete="off">
+    <select id="fl"><option value="">Level</option></select>
+  </div>
+</header>
+<main id="app"><div class="emptystate">Loading project data…</div></main>
+<div id="doc"></div>
+
+<nav id="tabbar">
+  <button data-tab="rooms" class="active"><span class="ic">🏛️</span>Rooms</button>
+  <button data-tab="plan"><span class="ic">🗺️</span>Plan</button>
+  <button data-tab="search"><span class="ic">🔎</span>Search</button>
+</nav>
+
+<script>
+var pdfjsLib = window.pdfjsLib;
+if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js'; }
+</script>
+<script src="data.js"></script>
+<script src="viewer.js"></script>
+<script src="app.js"></script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+</body>
+</html>
