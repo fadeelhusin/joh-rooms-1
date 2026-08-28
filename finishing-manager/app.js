@@ -126,13 +126,15 @@ function openRoom(id) {
   var r = ROOMS[id], x = EXTRA[id];
   var app = document.getElementById('app');
   if (!r) { app.innerHTML = '<div class="emptystate">Room not found.</div>'; return; }
-  x = x || { narrative: '', sequence: { walls: [], floors: [], ceilings: [] }, clearance: [], finishing: {}, planCrops: [] };
+  x = x || { narrative: '', sequence: { walls: [], floors: [], ceilings: [] }, clearance: [], finishing: {}, planCrops: [], doors: [], scopeContractor: '' };
 
   var html = '<button class="backbtn" onclick="history.back()">‹ Back</button>';
   html += '<div class="roomhead"><div class="rid">' + esc(id) + '</div><h2>' + esc(r.name) + '</h2>' +
     '<div class="rtags"><span class="rtag">Level ' + esc(r.level) + '</span><span class="rtag">' + esc(r.abbr) + '</span>' +
     (r.area ? '<span class="rtag">' + r.area.toFixed(1) + ' m²</span>' : '') +
-    (r.function ? '<span class="rtag">' + esc(r.function) + '</span>' : '') + '</div></div>';
+    (r.function ? '<span class="rtag">' + esc(r.function) + '</span>' : '') +
+    (x.scopeContractor ? '<span class="rtag scope-' + esc(x.scopeContractor.replace(/\s+/g, '')) + '">' + esc(x.scopeContractor) + ' scope</span>' : '') +
+    '</div></div>';
 
   html += '<div class="sectionhead">Overview</div><div class="card narrative">' + esc(x.narrative) + '</div>';
 
@@ -148,6 +150,7 @@ function openRoom(id) {
     html += '</div><div class="crop-note">Extracted directly from the project typology drawings (' + x.planCrops.map(function(c){return c.pdf.replace('OPE ','').replace('.pdf','')}).filter(function(v,i,a){return a.indexOf(v)===i}).join(', ') + '). Verify against the full IFC set before construction.</div>';
   }
 
+  html += renderDoors(x.doors, r.level);
   html += renderFinishingSchedule(x.finishing, id);
   html += renderSequence(id, x.sequence);
   html += renderClearance(id, x.clearance);
@@ -195,6 +198,31 @@ function openRoom(id) {
       cb.closest('tr').classList.toggle('done', cb.checked);
     });
   });
+}
+
+function renderDoors(doors, level) {
+  doors = doors || [];
+  if (!doors.length) return '';
+  var html = '<div class="sectionhead">Doors</div>';
+  doors.forEach(function (d) {
+    html += '<div class="card doorcard">' +
+      '<div class="doorhead"><span class="doormark">' + esc(d.mark) + '</span>' +
+      (d.keynote ? '<span class="doortype">' + esc(d.keynote) + '</span>' : '') + '</div>' +
+      '<table class="doorspecs">' +
+      (d.size ? '<tr><td>Size</td><td>' + esc(d.size) + (d.module_size ? ' (module ' + esc(d.module_size) + ')' : '') + '</td></tr>' : '') +
+      '<tr><td>Fire rating</td><td>' + esc(d.fire || 'N/A') + '</td></tr>' +
+      '<tr><td>Acoustic rating</td><td>' + esc(d.acoustic || 'N/A') + '</td></tr>' +
+      (d.threshold ? '<tr><td>Threshold</td><td>' + esc(d.threshold) + (d.hinge_side ? ' · hinge ' + esc(d.hinge_side) : '') + '</td></tr>' : '') +
+      (d.material ? '<tr><td>Leaf / finish</td><td>' + esc(d.material) + '</td></tr>' : '') +
+      (d.hardware && d.hardware.length ? '<tr><td>Hardware</td><td>' + esc(d.hardware.join(', ')) + '</td></tr>' : '') +
+      (d.eacs && d.eacs !== 'N/A' ? '<tr><td>Access control (EACS)</td><td>' + esc(d.eacs) + '</td></tr>' : '') +
+      (d.connects_to_name ? '<tr><td>Connects to</td><td>' + esc(d.connects_to_name) + (d.connects_to ? ' (' + esc(d.connects_to) + ')' : '') + '</td></tr>' : '') +
+      '</table>' +
+      '<div class="doorfoundation"><strong>Installation / backing requirements:</strong> ' + esc(d.foundation || '') + '</div>' +
+      '</div>';
+  });
+  html += '<div class="crop-note">From the project Door Schedule (AR-010500/501) — mark, opening dimensions, fire/acoustic ratings and hardware are as scheduled; anchorage/backing notes are derived from Spec 08 11 13 and this room’s wall type, and from the fire/acoustic rating shown. Verify against the door typology drawings (AR-015300-306) before construction.</div>';
+  return html;
 }
 
 function renderFinishingSchedule(fin, roomId) {

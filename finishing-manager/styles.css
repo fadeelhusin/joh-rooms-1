@@ -133,6 +133,25 @@ table.fintable tr:last-child td{border-bottom:none}
 .small{font-size:11.5px;color:var(--ink2)}
 .noteflag{font-size:11.5px;background:#fdf2e3;border:1px solid #eedcb8;color:#8a6316;border-radius:6px;padding:6px 9px;margin:8px 0}
 
+/* scope badges (contractor color-coding, mirrors plan legend colors) */
+.roomhead .rtag.scope-ZAK{background:rgba(76,120,209,.32)}
+.roomhead .rtag.scope-MBLMarine{background:rgba(70,168,113,.32)}
+.roomhead .rtag.scope-BAUMAT{background:rgba(201,80,73,.32)}
+.roomhead .rtag.scope-ICONIC{background:rgba(201,80,73,.32)}
+
+/* doors */
+.doorcard{margin-bottom:10px}
+.doorcard:last-child{margin-bottom:0}
+.doorhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.doormark{font-weight:700;color:var(--accent);font-size:14px}
+.doortype{font-size:10.5px;background:var(--paper);border:1px solid var(--line);color:var(--ink2);border-radius:5px;padding:2px 7px;font-weight:600}
+table.doorspecs{width:100%;border-collapse:collapse;font-size:13px}
+table.doorspecs td{padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+table.doorspecs tr:last-child td{border-bottom:none}
+table.doorspecs td:first-child{width:40%;color:var(--ink2);font-size:12px}
+.doorfoundation{font-size:12.5px;line-height:1.55;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-top:10px}
+.doorfoundation strong{color:var(--brand)}
+
 @media print{
   header,#tabbar,#doc,.printbtn{display:none!important}
   #app{padding:0;max-width:none}
