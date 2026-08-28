@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v1';
+const CACHE = 'joh-storyboard-v2';
 const ASSETS = [
   "./",
   "./index.html",
@@ -427,7 +427,13 @@ const ASSETS = [
   "./docs/JOH-HLA-S4-01-056-XXX-DS-SCH-ID-000045.pdf"
 ];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()).catch(err => console.error('SW precache failed', err)));
+  // Add each asset individually (not addAll) so one missing/not-yet-uploaded
+  // file can't abort precaching of everything else — and never cache a failed response.
+  e.waitUntil(
+    caches.open(CACHE).then(c => Promise.all(ASSETS.map(a =>
+      fetch(a).then(r => { if (r && r.ok) return c.put(a, r); }).catch(() => {})
+    ))).then(() => self.skipWaiting())
+  );
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -439,14 +445,21 @@ self.addEventListener('fetch', e => {
   const isApp = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('sw.js');
   const isData = url.pathname.indexOf('/data/') >= 0;
   if (isData) {
-    e.respondWith(fetch(e.request).then(r => { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); return r; })
+    e.respondWith(fetch(e.request).then(r => { if (r && r.ok) { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return r; })
       .catch(() => caches.match(e.request).then(h => h || new Response('{}', {headers:{'Content-Type':'application/json'}}))));
   } else if (isApp) {
-    e.respondWith(fetch(e.request).then(r => { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); return r; })
+    e.respondWith(fetch(e.request).then(r => { if (r && r.ok) { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); } return r; })
       .catch(() => caches.match(e.request).then(h => h || caches.match('./index.html'))));
   } else {
-    e.respondWith(caches.match(e.request, {ignoreSearch:true}).then(h => h || fetch(e.request).then(r => {
-      const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); return r;
-    })));
+    // Cache-first for static assets (images/PDFs/vendor libs) — but NEVER store
+    // a failed (404/error) response, and always fall back to network if nothing
+    // usable is cached, so a fixed file on the server is picked up immediately.
+    e.respondWith(caches.match(e.request, {ignoreSearch:true}).then(h => {
+      if (h && h.ok) return h;
+      return fetch(e.request).then(r => {
+        if (r && r.ok) { const cp=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,cp)); }
+        return r;
+      }).catch(() => h || Promise.reject(new Error('offline and not cached')));
+    }));
   }
 });
