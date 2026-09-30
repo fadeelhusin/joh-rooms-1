@@ -301,6 +301,7 @@ var SiteCam = (function () {
     var k = 'sc_log_' + S.room, a = lsGet(k, []) || [];
     if (a.some(function (x) { return x.n === S.name; })) return;
     a.push({ n: S.name, t: Date.now(), note: (($('sc-note') || {}).value || '').slice(0, 200) }); lsSet(k, a.slice(-300));
+    if (window.Geo) Geo.fromPhoto(S.room, S.srcGeo ? null : S.geo);
     var c = $('sc-count'); if (c) c.textContent = a.length + ' site photo(s) saved for this room on this phone.';
   }
   function download() {
@@ -331,6 +332,8 @@ var SiteCam = (function () {
    Apple Photos / Maps place it on the map.
    ============================================================ */
 var Exif = (function () {
+  var LAST_DESC = '';
+  function readMeta(file) { LAST_DESC = ''; return readGps(file).then(function (g) { return { gps: g, desc: LAST_DESC }; }); }
   function readGps(file) {
     return file.slice(0, 262144).arrayBuffer().then(function (buf) {
       var v = new DataView(buf);
@@ -348,8 +351,13 @@ var Exif = (function () {
   function parseTiff(v, t) {
     var le = v.getUint16(t) === 0x4949;
     var u16 = function (p) { return v.getUint16(t + p, le); }, u32 = function (p) { return v.getUint32(t + p, le); };
-    var ifd = u32(4), n = u16(ifd), gps = 0;
-    for (var i = 0; i < n; i++) { var e = ifd + 2 + i * 12; if (u16(e) === 0x8825) gps = u32(e + 8); }
+    var ifd = u32(4), n = u16(ifd), gps = 0, desc = '';
+    for (var i = 0; i < n; i++) {
+      var e = ifd + 2 + i * 12;
+      if (u16(e) === 0x8825) gps = u32(e + 8);
+      if (u16(e) === 0x010E) { var c = u32(e + 4), at = c > 4 ? u32(e + 8) : e + 8; for (var z = 0; z < c - 1 && t + at + z < v.byteLength; z++) desc += String.fromCharCode(v.getUint8(t + at + z)); }
+    }
+    LAST_DESC = desc;
     if (!gps) return null;
     var g = {}, m = u16(gps);
     for (var j = 0; j < m; j++) {
@@ -407,5 +415,5 @@ var Exif = (function () {
       return new Blob([u.subarray(0, 2), build(o), u.subarray(rest)], { type: 'image/jpeg' });
     });
   }
-  return { readGps: readGps, write: write };
+  return { readGps: readGps, readMeta: readMeta, write: write };
 })();

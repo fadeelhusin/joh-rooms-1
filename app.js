@@ -114,6 +114,7 @@ function route() {
   var h = location.hash.replace(/^#\/?/, '');
   var parts = h.split('/').filter(Boolean).map(decodeURIComponent);
   window.scrollTo(0, 0);
+  if (parts[0] === 'here' && parts[1] && window.Geo) { return Geo.arrive(parts[1], parts[2] || ''); }
   if (parts[0] === 'room' && parts[1]) { setTab('rooms'); return openRoom(parts[1]); }
   if (parts[0] === 'plan') {
     setTab('plan'); openPlanBrowse(parts[1] || LEVELS[0]);
@@ -330,7 +331,9 @@ function openPlanBrowse(level) {
   h += '<div class="levelpicker">';
   LEVELS.forEach(function (l) { h += '<button class="' + (l === level ? 'active' : '') + '" onclick="location.hash=\'#/plan/' + l + '\'">Level ' + l + '</button>'; });
   h += '</div>';
-  if (window.Locs) h += Locs.planTools(level);
+  var LT = window.Locs ? Locs.planTools(level) : {}, GT = window.Geo ? Geo.planTools(level) : {};
+  h += '<div class="tbar">' + (LT.btn || '') + (GT.btn || '') + (LT.btnEnd || '') + '</div>' +
+    '<div class="tstat">' + (GT.chip || '') + (LT.stat || '') + (GT.stat || '') + '</div><div id="loc-banner"></div>';
   h += '<div class="planwrap" id="pvb"><canvas></canvas><div class="dotlayer" style="position:absolute;inset:0;pointer-events:none"></div>' +
     '<div id="pvlvl">LEVEL ' + esc(level) + '</div><div class="pvstat-el" id="pvstat"></div></div>';
   h += '<div class="small" style="margin-top:8px">Drag to pan · pinch / scroll to zoom · tap a gold pin to take a Site Photo or open the room.</div>';

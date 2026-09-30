@@ -73,6 +73,21 @@ var Locs = (function () {
       return r.json().then(function (j) { var d = JSON.parse(b64dec(j.content) || '{}'); return { sha: j.sha, list: d.locations || [] }; });
     });
   }
+  /* generic helpers other modules (geo.js) use for their own shared files */
+  function ghRead(path) {
+    return fetch('https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + path + '?ref=' + GH.branch + '&t=' + Date.now(), { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + token(), 'Accept': 'application/vnd.github+json' } })
+      .then(function (r) {
+        if (r.status === 404) return { sha: null, data: null };
+        if (!r.ok) throw new Error(r.status === 401 ? 'Token rejected (401)' : r.status === 403 ? 'Token has no access (403)' : 'GitHub error ' + r.status);
+        return r.json().then(function (j) { return { sha: j.sha, data: JSON.parse(b64dec(j.content) || 'null') }; });
+      });
+  }
+  function ghWrite(path, obj, sha, msg) {
+    var body = { message: msg || ('Update ' + path), branch: GH.branch, content: b64enc(JSON.stringify(obj, null, 1)) };
+    if (sha) body.sha = sha;
+    return fetch('https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + path, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token(), 'Accept': 'application/vnd.github+json' }, body: JSON.stringify(body) })
+      .then(function (r) { if (r.status === 409 || r.status === 422) { var er = new Error('conflict'); er.conflict = true; throw er; } if (!r.ok) throw new Error('Upload failed (' + r.status + ')'); return r; });
+  }
   function setShared(list, fromServer) {
     var before = JSON.stringify(shared());
     lsS(K_SHARED, list);
@@ -144,7 +159,8 @@ var Locs = (function () {
       '<div class="sublab">GitHub token</div><input id="loc-tok" class="loc-in" type="password" autocomplete="off" placeholder="' + (has ? '•••••••• saved on this phone' : 'github_pat_…') + '">' +
       '<div class="small" style="margin-top:6px">Create it at github.com → Settings → Developer settings → Fine-grained tokens → Repository access: only <b>' + GH.repo + '</b> → Permissions: <b>Contents: Read and write</b>. The token stays on this phone only.</div>' +
       '<div class="sc-actions"><button class="btn brass sc-big" onclick="Locs.saveToken()">Save &amp; test</button>' + (has ? '<button class="btn ghost loc-del" onclick="Locs.clearToken()">Remove token</button>' : '') + '</div>' +
-      '<div class="small" id="loc-tokmsg"></div></div>');
+      '<div class="small" id="loc-tokmsg"></div>' +
+      '<div class="sublab">Backup of custom locations</div><button class="btn ghost" onclick="Locs.exportAll()">Export file</button><button class="btn ghost" onclick="Locs.importPick()">Import file</button></div>');
   }
   function saveToken() {
     var v = ($('loc-tok').value || '').trim(), msg = $('loc-tokmsg');
@@ -328,11 +344,9 @@ var Locs = (function () {
   /* ---------- page pieces used by app.js ---------- */
   function planTools(level) {
     setTimeout(status, 0);
-    var n = load().filter(function (l) { return l.level === level; }).length;
-    return '<div class="loc-tools"><button class="btn brass" id="loc-addbtn" onclick="Locs.startAdd(\'' + e(level) + '\')">+ Add Location</button>' +
-      '<button class="btn ghost" onclick="Locs.settings()">⚙ Sync</button><button class="btn ghost" onclick="Locs.exportAll()">Export</button><button class="btn ghost" onclick="Locs.importPick()">Import</button>' +
-      '<span class="loc-sync" id="loc-sync"></span><span class="small">' + (n ? n + ' custom pin(s) on this level' : '') + '</span></div>' +
-      '<div id="loc-banner"></div>';
+    return { btn: '<button class="tb brass" id="loc-addbtn" onclick="Locs.startAdd(\'' + e(level) + '\')">+ Location</button>',
+      btnEnd: '<button class="tb" onclick="Locs.settings()">⚙ Sync</button>',
+      stat: '<span class="loc-sync" id="loc-sync"></span>' };
   }
   function roomCard(k, d) {
     if (!d.custom) return '';
@@ -345,5 +359,5 @@ var Locs = (function () {
       '<button class="btn ghost" onclick="Locs.edit(\'' + e(k) + '\')">Edit / Move / Delete</button></div>';
   }
 
-  return { settings: settings, saveToken: saveToken, clearToken: clearToken, fetchShared: fetchShared, sync: sync, mergeAll: mergeAll, startAdd: startAdd, startMove: startMove, cancel: cancel, saveNew: saveNew, edit: edit, saveEdit: saveEdit, del: del, move: move, closeDlg: closeDlg, exportAll: exportAll, importPick: importPick, planTools: planTools, roomCard: roomCard, nearest: nearest };
+  return { gh: { token: token, read: ghRead, write: ghWrite }, toast: toast, dlg: dlg, settings: settings, saveToken: saveToken, clearToken: clearToken, fetchShared: fetchShared, sync: sync, mergeAll: mergeAll, startAdd: startAdd, startMove: startMove, cancel: cancel, saveNew: saveNew, edit: edit, saveEdit: saveEdit, del: del, move: move, closeDlg: closeDlg, exportAll: exportAll, importPick: importPick, planTools: planTools, roomCard: roomCard, nearest: nearest };
 })();

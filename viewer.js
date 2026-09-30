@@ -39,7 +39,7 @@ var Viewer = (function () {
   }
 
   function openBrowse(level, containerId, onPick) {
-    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.addFn = null; V.tmp = null;
+    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.addFn = null; V.tmp = null; V.tmpR = 0;
     var dim = META.dims[level];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -162,6 +162,13 @@ var Viewer = (function () {
         tm.style.display = 'block';
         tm.style.left = (V.tmp[0] * V.vw * V.viewScale + V.tx) + 'px'; tm.style.top = (V.tmp[1] * V.vh * V.viewScale + V.ty) + 'px';
       } else if (tm) tm.style.display = 'none';
+      var ac = V.container.querySelector('.acc-circle');
+      if (V.tmp && V.tmpR) {
+        if (!ac) { ac = document.createElement('div'); ac.className = 'acc-circle'; V.container.appendChild(ac); }
+        var rp = V.tmpR * V.vw * V.viewScale;
+        ac.style.display = 'block'; ac.style.width = ac.style.height = (2 * rp) + 'px';
+        ac.style.left = (V.tmp[0] * V.vw * V.viewScale + V.tx - rp) + 'px'; ac.style.top = (V.tmp[1] * V.vh * V.viewScale + V.ty - rp) + 'px';
+      } else if (ac) ac.style.display = 'none';
     }
   }
 
@@ -237,7 +244,8 @@ var Viewer = (function () {
   }
 
   function setAddMode(fn) { V.addFn = fn || null; if (!fn) V.tmp = null; draw(); }
-  function showTemp(nx, ny) { V.tmp = nx == null ? null : [nx, ny]; draw(); }
+  function showTemp(nx, ny, rNorm) { V.tmp = nx == null ? null : [nx, ny]; V.tmpR = rNorm || 0; draw(); }
+  function level() { return V.mode === 'browse' ? V.lvl : null; }
   function centerOn(nx, ny, s) {
     if (!V.container) return;
     V.viewScale = clampS(s || 2.4);
@@ -253,5 +261,5 @@ var Viewer = (function () {
     V.tx = cw / 2 - nx * V.vw * V.viewScale; V.ty = ch * (fy || 0.5) - ny * V.vh * V.viewScale;
     draw(); scheduleRender();
   }
-  return { panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
+  return { level: level, panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
 })();

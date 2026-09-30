@@ -276,3 +276,31 @@ details>.body{padding:12px 15px}
 .loc-card{border-left:4px solid #2f7d6d}
 .loc-del{color:var(--red);border-color:var(--red)}
 .sc-addnear{width:100%;justify-content:center;margin-top:8px}
+
+/* ---------- GPS ↔ plan + level QR (geo.js) ---------- */
+.geo-tools{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 0 8px}
+.geo-chip{display:inline-block;background:#2f6db5;color:#fff;border-radius:14px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;margin-right:4px}
+.geo-chip.off{background:transparent;color:#2f6db5;border:1px dashed #2f6db5}
+.acc-circle{position:absolute;border:2px solid #2f6db5;background:rgba(47,109,181,.16);border-radius:50%;pointer-events:none;z-index:3}
+.geo-live{font-size:14px;margin:8px 0;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:6px}
+.geo-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.geo-row .btn{margin:0;padding:6px 10px}
+.geo-vid{width:100%;max-height:52vh;background:#000;border-radius:6px;object-fit:cover}
+.loc-sync{font-size:11.5px;color:var(--green);font-weight:600}
+.loc-sync.wait{color:var(--amber)} .loc-sync.err{color:var(--red)}
+#loc-dlg.hide{display:none!important}
+#doc .qr-lv{display:grid;grid-template-columns:1fr 1fr;gap:10mm}
+#doc .qr-lvc{border:1px dashed #999;text-align:center;padding:6mm;break-inside:avoid}
+#doc .qr-lvc img{width:62mm;height:62mm;image-rendering:pixelated}
+#doc .qr-t{font:700 26px Arial,sans-serif;margin-bottom:3mm}
+#doc .qr-s{font:11px Arial,sans-serif;margin-top:2mm}
+#doc .qr-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}
+#doc .qr-lab{display:flex;gap:2mm;align-items:center;border:1px dashed #aaa;padding:2mm;font:10px Arial,sans-serif;break-inside:avoid}
+#doc .qr-lab img{width:24mm;height:24mm;image-rendering:pixelated}
+#doc .qr-lab b{font-size:12px}
+.tbar{display:flex;gap:6px;overflow-x:auto;padding:0 2px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tbar::-webkit-scrollbar{display:none}
+.tb{flex:0 0 auto;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);border-radius:16px;padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;cursor:pointer}
+.tb.brass{background:var(--brass);border-color:var(--brass);color:#fff}
+.tstat{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 2px 8px}
+.tstat .geo-chip{padding:4px 10px;font-size:12px;margin:0}
