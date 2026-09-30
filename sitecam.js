@@ -21,7 +21,7 @@ var SiteCam = (function () {
     var d = ROOMS[id]; if (!d) return;
     var sh = $('sc-sheet');
     if (!sh) { sh = document.createElement('div'); sh.id = 'sc-sheet'; document.body.appendChild(sh); }
-    sh.innerHTML = '<div class="sc-sh-top"><div><div class="rn">' + e(id) + '</div><div class="small">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + '</div></div>' +
+    sh.innerHTML = '<div class="sc-sh-top"><div><div class="rn">' + e(id) + '</div><div class="small">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + (window.Grid && Grid.ofRoom(id) ? ' · Grid ' + e(Grid.ofRoom(id).text) : '') + '</div></div>' +
       '<button class="sc-x" aria-label="Close" onclick="SiteCam.closeSheet()">✕</button></div>' +
       '<div class="sc-sh-btns"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + e(id) + '\')">📷 Site Photo</button>' +
       '<button class="btn ghost" onclick="SiteCam.closeSheet();location.hash=\'#/room/' + encodeURIComponent(id) + '\'">' + (d.custom ? 'Open location' : 'Open room') + '</button></div>' +
@@ -198,7 +198,8 @@ var SiteCam = (function () {
     var lines = [];
     lines.push({ t: S.room, sz: f * 1.3, w: 'bold ', c: '#f3c77a' });
     nameLines.forEach(function (l) { lines.push({ t: l, sz: f * 0.95, w: '600 ', c: '#ffffff' }); });
-    lines.push({ t: 'Level ' + d.baseLevel + (d.zone ? '  ·  Zone ' + d.zone : '') + (d.custom ? '' : (d.abbr ? '  ·  ' + d.abbr : '') + (d.area ? '  ·  ' + d.area + ' m²' : '')), sz: f * 0.78, w: '', c: '#d8cdb6' });
+    var GR = window.Grid && Grid.ofRoom(S.room);
+    lines.push({ t: 'Level ' + d.baseLevel + (GR ? '  ·  Grid ' + GR.text : '') + (d.zone ? '  ·  Zone ' + d.zone : '') + (d.custom ? '' : (d.abbr ? '  ·  ' + d.abbr : '') + (d.area ? '  ·  ' + d.area + ' m²' : '')), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.near) lines.push({ t: 'Near ' + d.near + (ROOMS[d.near] ? ' — ' + ROOMS[d.near].name : ''), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.desc) wrap(ctx, d.desc, tw).slice(0, 2).forEach(function (l) { lines.push({ t: l, sz: f * 0.78, w: '', c: '#d8cdb6' }); });
     if (noteLines.length) { lines.push({ gap: f * 0.45, rule: true }); noteLines.forEach(function (l) { lines.push({ t: l, sz: f * 0.95, w: '', c: '#ffffff', note: 1 }); }); }

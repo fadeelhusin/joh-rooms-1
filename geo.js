@@ -284,6 +284,7 @@ var Geo = (function () {
       var pw = $('pvb'); if (pw) pw.scrollIntoView({ block: 'start' });
       var near = inSheet ? nearRooms(level, pp.x, pp.y, f, 6) : [];
       var h = '<div class="sc-body">' + (keepWatch ? '<div class="geo-live" id="geo-live">±' + Math.round(g.acc) + ' m</div>' : '') +
+        (window.Grid && Grid.at(pp.x, pp.y) ? '<div class="loc-grid">≈ Grid ' + e(Grid.at(pp.x, pp.y).text) + '</div>' : '') +
         '<div class="small">Blue circle = likely area (±' + Math.round(accM) + ' m).' + (note ? ' ' + e(note) : '') + '</div>';
       if (!inSheet) h += '<div class="small" style="color:var(--red)">The position falls outside this plan sheet — check the calibration or the photo.</div>';
       if (near.length) {

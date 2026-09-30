@@ -304,3 +304,4 @@ details>.body{padding:12px 15px}
 .tb.brass{background:var(--brass);border-color:var(--brass);color:#fff}
 .tstat{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 2px 8px}
 .tstat .geo-chip{padding:4px 10px;font-size:12px;margin:0}
+.loc-grid{display:inline-block;background:#eef3fa;color:#2c3b4a;border:1px solid #c9d6e8;border-radius:4px;padding:3px 8px;font-weight:700;font-size:13px;margin:2px 0}

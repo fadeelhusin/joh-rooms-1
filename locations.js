@@ -242,7 +242,8 @@ var Locs = (function () {
     dlg('<div class="sc-head"><div><div class="eyebrow" style="color:#d8cdb6">New location · Level ' + e(add.level) + '</div><div class="rn">' + e(nextId(add.level, load())) + '</div></div><button class="sc-x" onclick="Locs.cancel()">✕</button></div>' +
       '<div class="sc-body">' +
       '<div class="sublab">Location name *</div><input id="loc-name" dir="auto" class="loc-in" placeholder="e.g. Corridor behind Stage Door" autocomplete="off">' +
-      '<div class="sublab">Description (optional)</div><input id="loc-desc" dir="auto" class="loc-in" placeholder="e.g. Between grid C4–C6, riser side">' +
+      '<div class="sublab">Grid (automatic)</div><div class="loc-grid">' + (window.Grid && Grid.at(x, y) ? e(Grid.at(x, y).text) : '—') + '</div>' +
+      '<div class="sublab">Description (optional)</div><input id="loc-desc" dir="auto" class="loc-in" placeholder="e.g. riser side, behind the stage door">' +
       '<div class="sublab">Nearest room</div><div class="small">' + (nr ? '<b>' + e(near) + '</b> — ' + e(nr.name || '') : 'None found on this level') + '</div>' +
       '<div class="small" style="margin-top:6px">✓ Position set — tap somewhere else on the plan to move it.</div>' +
       '<div class="sc-actions"><button class="btn brass sc-big" onclick="Locs.saveNew(false)">Save location</button>' +
@@ -253,7 +254,7 @@ var Locs = (function () {
     var nm = ($('loc-name').value || '').trim();
     if (!nm) { $('loc-name').focus(); $('loc-name').classList.add('err'); return; }
     var list = load(), id = nextId(add.level, list);
-    var l = { id: id, name: nm, desc: ($('loc-desc').value || '').trim(), level: add.level, x: add.x, y: add.y, near: add.nearAuto || add.near || '', created: new Date().toISOString() };
+    var l = { id: id, name: nm, desc: ($('loc-desc').value || '').trim(), level: add.level, x: add.x, y: add.y, near: add.nearAuto || add.near || '', grid: window.Grid && Grid.at(add.x, add.y) ? Grid.at(add.x, add.y).text : '', created: new Date().toISOString() };
     list.push(l); save(list); mergeAll();
     var lvl = add.level;
     cancel();
@@ -353,6 +354,7 @@ var Locs = (function () {
     var nr = d.near && ROOMS_DATA[d.near];
     setTimeout(status, 0);
     return '<div class="card loc-card"><div class="eyebrow">Custom location · ' + (isPending(k) ? (token() ? 'waiting to share' : 'this phone only — set up ⚙ Sync on the Plan tab') : 'shared with the team') + '</div>' +
+      (window.Grid && Grid.ofRoom(k) ? '<div class="loc-grid">Grid ' + e(Grid.ofRoom(k).text) + '</div>' : '') +
       (d.desc ? '<div style="margin:4px 0" dir="auto">' + e(d.desc) + '</div>' : '') +
       (nr ? '<div class="small">Nearest room: <span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(d.near) + '\'">' + e(d.near) + ' · ' + e(nr.name || '') + '</span></div>' : '') +
       '<div class="small">Added ' + e((d.created || '').slice(0, 10)) + '</div>' +

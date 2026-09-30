@@ -183,14 +183,14 @@ function openRoom(k) {
     h += '<div class="frame" style="display:flex;align-items:center;justify-content:center;color:#eee;font-size:12.5px;padding:20px;text-align:center">Location not yet mapped on the L' + esc(d.baseLevel) + ' plan — open the full drawing below.</div>';
   }
   h += '<div class="caption"><div class="rn">' + esc(k) + '</div><div class="rt">' + esc(d.name || '') + '</div>' +
-    '<div class="tags"><span class="tag">Level ' + esc(d.baseLevel) + '</span>' + (d.custom ? '<span class="tag">📍 Custom location</span>' : '') + '<span class="tag">Zone ' + esc(d.zone || '–') + '</span>' +
+    '<div class="tags"><span class="tag">Level ' + esc(d.baseLevel) + '</span>' + (d.custom ? '<span class="tag">📍 Custom location</span>' : '') + (window.Grid && Grid.ofRoom(k) ? '<span class="tag">Grid ' + esc(Grid.ofRoom(k).text) + '</span>' : '') + '<span class="tag">Zone ' + esc(d.zone || '–') + '</span>' +
     (d.area ? '<span class="tag">' + d.area + ' m²</span>' : '') + '<span class="tag">' + esc(d.abbr) + '</span></div></div></div>';
   if (d.pos) h += '<div class="small" style="margin:-6px 0 8px">Drag to pan · pinch / +− to zoom · ◎ re-centre. Source: ' + esc(d.dwg || '') + '.</div>';
 
   if (window.Locs && d.custom) h += Locs.roomCard(k, d);
   h += '<button class="btn ghost" onclick="location.hash=\'#/plan/' + esc(d.baseLevel) + '/add/' + encodeURIComponent(d.custom ? (d.near || '') : k) + '\'">📍 Add location near here</button>';
   h += '<table class="kv card" style="margin-top:2px"><tbody>' +
-    row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Zone', d.zone) +
+    row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Grid', (window.Grid && Grid.ofRoom(k) ? Grid.ofRoom(k).text : null)) + row2('Zone', d.zone) +
     row2('Nett area', d.area ? (d.area + ' m²') : null) + row2('Function (schedule)', d.function) +
     row2('Abbreviation usage', st[0]) + row2('OPE function', st[1]) + '</tbody></table>';
 
@@ -455,7 +455,7 @@ function openMaterial(code) {
 function printRoom(k) {
   var d = ROOMS[k], st = d.study || ['', ''];
   var h = '<h1>Room Storyboard: ' + esc(k) + '</h1><div class="small">Jeddah Opera House · FF&amp;E Site Reference · Rev F00 IFC 31-01-2024</div>';
-  h += '<h2>Room information</h2><table class="kv">' + row2('Room number', k) + row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Zone', d.zone) + row2('Nett area', d.area ? d.area + ' m²' : 'n/a') + row2('Function', d.function) + row2('Abbreviation', d.abbr) + row2('Usage', st[0]) + row2('OPE function', st[1]) + '</table>';
+  h += '<h2>Room information</h2><table class="kv">' + row2('Room number', k) + row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Grid', (window.Grid && Grid.ofRoom(k) ? Grid.ofRoom(k).text : null)) + row2('Zone', d.zone) + row2('Nett area', d.area ? d.area + ' m²' : 'n/a') + row2('Function', d.function) + row2('Abbreviation', d.abbr) + row2('Usage', st[0]) + row2('OPE function', st[1]) + '</table>';
   var items = d.ffe || [];
   if (items.length) {
     h += '<h2>FF&amp;E schedule — ' + esc(d.abbr) + '</h2><table><tr><th>Item</th><th>Category</th><th>Specification</th><th>Qty</th><th>Material/Finish</th></tr>';
