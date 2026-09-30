@@ -181,7 +181,7 @@ var Viewer = (function () {
       layer.innerHTML = '';
       V.markers.forEach(function (m) {
         var el = document.createElement('div');
-        el.className = 'mkdot' + (ROOMS[m.id] && ROOMS[m.id].custom ? ' custom' : '');
+        el.className = 'mkdot' + (ROOMS[m.id] && ROOMS[m.id].custom ? ' custom' : '') + (window.Site ? ' ' + Site.pinClass(m.id) : '');
         el.dataset.id = m.id;
         el.title = m.id;
         el.onclick = function (ev) { ev.stopPropagation(); if (V.onPick) V.onPick(m.id); };

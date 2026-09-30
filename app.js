@@ -122,6 +122,7 @@ function route() {
     if (window.Locs && parts[2] === 'move' && parts[3]) Locs.startMove(parts[3]);
     return;
   }
+  if (parts[0] === 'lookahead' && window.Site) { setTab('lookahead'); q.style.display = 'none'; fl.style.display = 'none'; fa.style.display = 'none'; return Site.lookahead(parts[1]); }
   if (parts[0] === 'materials' && !parts[1]) { setTab('materials'); return renderMaterialsHome(); }
   if (parts[0] === 'material' && parts[1]) { setTab('materials'); return openMaterial(parts[1]); }
   setTab('rooms'); renderHome();
@@ -185,6 +186,7 @@ function openRoom(k) {
   h += '<div class="caption"><div class="rn">' + esc(k) + '</div><div class="rt">' + esc(d.name || '') + '</div>' +
     '<div class="tags"><span class="tag">Level ' + esc(d.baseLevel) + '</span>' + (d.custom ? '<span class="tag">📍 Custom location</span>' : '') + (window.Grid && Grid.ofRoom(k) ? '<span class="tag">Grid ' + esc(Grid.ofRoom(k).text) + '</span>' : '') + '<span class="tag">Zone ' + esc(d.zone || '–') + '</span>' +
     (d.area ? '<span class="tag">' + d.area + ' m²</span>' : '') + '<span class="tag">' + esc(d.abbr) + '</span></div></div></div>';
+  if (window.Site) h += Site.roomSection(k);
   if (d.pos) h += '<div class="small" style="margin:-6px 0 8px">Drag to pan · pinch / +− to zoom · ◎ re-centre. Source: ' + esc(d.dwg || '') + '.</div>';
 
   if (window.Locs && d.custom) h += Locs.roomCard(k, d);
@@ -333,7 +335,8 @@ function openPlanBrowse(level) {
   h += '</div>';
   var LT = window.Locs ? Locs.planTools(level) : {}, GT = window.Geo ? Geo.planTools(level) : {};
   h += '<div class="tbar">' + (LT.btn || '') + (GT.btn || '') + (LT.btnEnd || '') + '</div>' +
-    '<div class="tstat">' + (GT.chip || '') + (LT.stat || '') + (GT.stat || '') + '</div><div id="loc-banner"></div>';
+    '<div class="tstat">' + (GT.chip || '') + (LT.stat || '') + (GT.stat || '') + '</div>' +
+    '<div class="pin-legend"><i class="st-ready"></i>open <i class="st-wip"></i>in progress <i class="st-blocked"></i>blocked <i class="st-handed"></i>handed <i></i>not surveyed</div><div id="loc-banner"></div>';
   h += '<div class="planwrap" id="pvb"><canvas></canvas><div class="dotlayer" style="position:absolute;inset:0;pointer-events:none"></div>' +
     '<div id="pvlvl">LEVEL ' + esc(level) + '</div><div class="pvstat-el" id="pvstat"></div></div>';
   h += '<div class="small" style="margin-top:8px">Drag to pan · pinch / scroll to zoom · tap a gold pin to take a Site Photo or open the room.</div>';

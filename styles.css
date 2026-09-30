@@ -305,3 +305,32 @@ details>.body{padding:12px 15px}
 .tstat{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 2px 8px}
 .tstat .geo-chip{padding:4px 10px;font-size:12px;margin:0}
 .loc-grid{display:inline-block;background:#eef3fa;color:#2c3b4a;border:1px solid #c9d6e8;border-radius:4px;padding:3px 8px;font-weight:700;font-size:13px;margin:2px 0}
+
+/* ---------- Site status & look-ahead (site.js) ---------- */
+.site-card{padding:10px 12px}
+.site-st{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.site-st .ic{width:20px;text-align:center}
+.site-st .sid{font-weight:700;color:var(--brass-deep);min-width:30px}
+.site-st .snm{flex:1}
+.site-st .sby{font-size:11px;color:var(--mut)}
+.site-st.done .snm{color:var(--green)}
+.site-st.wip{background:#eef3fa}
+.site-st.ready{background:#eef7ef}
+.site-st.locked{opacity:.6}
+.site-bl{display:flex;justify-content:space-between;gap:8px;align-items:center;border-left:3px solid var(--red);background:#fbeeec;padding:6px 8px;margin:4px 0;border-radius:4px;font-size:13px}
+.site-bl .btn{margin:0;padding:6px 10px}
+.site-prop{background:#fff7e6;border:1px solid #f0d49a;padding:6px 8px;border-radius:4px;font-size:12.5px;margin-bottom:6px}
+.site-line{font-size:12px;margin-top:3px;color:var(--ink-soft)}
+.sc-stage{display:flex;gap:6px}
+.sc-stage select:first-child{flex:2}.sc-stage select:last-child{flex:1}
+.mkdot.st-ready{background:#3f9a54}.mkdot.st-wip{background:#2f6db5}.mkdot.st-blocked{background:#c0392b}.mkdot.st-handed{background:#1d1d1d}
+.pin-legend{font-size:11px;color:var(--mut);margin:-4px 2px 8px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.pin-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--brass);border:1px solid #fff;box-shadow:0 0 0 1px #ccc;margin-right:3px;vertical-align:-1px}
+.pin-legend i.st-ready{background:#3f9a54}.pin-legend i.st-wip{background:#2f6db5}.pin-legend i.st-blocked{background:#c0392b}.pin-legend i.st-handed{background:#1d1d1d}
+.la-kpi{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0}
+.la-kpi .k{background:var(--card);border:1px solid var(--line);border-radius:6px;text-align:center;padding:6px 2px;font-size:10.5px;color:var(--mut)}
+.la-kpi .k b{display:block;font-size:19px;color:var(--ink)}
+.la-kpi .ready b{color:#3f9a54}.la-kpi .wip b{color:#2f6db5}.la-kpi .blocked b{color:#c0392b}
+details.la-grp summary{font-size:13.5px}
+details.la-grp .roomchip{margin:3px}
+nav#tabbar button{flex:1}

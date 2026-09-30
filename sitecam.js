@@ -21,7 +21,7 @@ var SiteCam = (function () {
     var d = ROOMS[id]; if (!d) return;
     var sh = $('sc-sheet');
     if (!sh) { sh = document.createElement('div'); sh.id = 'sc-sheet'; document.body.appendChild(sh); }
-    sh.innerHTML = '<div class="sc-sh-top"><div><div class="rn">' + e(id) + '</div><div class="small">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + (window.Grid && Grid.ofRoom(id) ? ' · Grid ' + e(Grid.ofRoom(id).text) : '') + '</div></div>' +
+    sh.innerHTML = '<div class="sc-sh-top"><div><div class="rn">' + e(id) + '</div><div class="small">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + (window.Grid && Grid.ofRoom(id) ? ' · Grid ' + e(Grid.ofRoom(id).text) : '') + '</div>' + (window.Site ? Site.sheetLine(id) : '') + '</div>' +
       '<button class="sc-x" aria-label="Close" onclick="SiteCam.closeSheet()">✕</button></div>' +
       '<div class="sc-sh-btns"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + e(id) + '\')">📷 Site Photo</button>' +
       '<button class="btn ghost" onclick="SiteCam.closeSheet();location.hash=\'#/room/' + encodeURIComponent(id) + '\'">' + (d.custom ? 'Open location' : 'Open room') + '</button></div>' +
@@ -36,10 +36,11 @@ var SiteCam = (function () {
   window.addEventListener('hashchange', function () { closeSheet(); if ($('sc-modal') && $('sc-modal').classList.contains('on')) close(); });
 
   /* ---------- 2. the capture panel ---------- */
-  function open(id) {
+  function open(id, stage) {
     var d = ROOMS[id]; if (!d) return;
     closeSheet();
     S.room = id; S.img = null; S.blob = null;
+    var TPL = window.Site && Site.T[Site.tplOf(id)];
     var lang = lsGet('sc_lang', 'ar-SA');
     var m = $('sc-modal');
     if (!m) { m = document.createElement('div'); m.id = 'sc-modal'; document.body.appendChild(m); }
@@ -49,6 +50,8 @@ var SiteCam = (function () {
       '<div class="sc-sub">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + (d.zone ? ' · Zone ' + e(d.zone) : '') + '</div></div>' +
       '<button class="sc-x" aria-label="Close" onclick="SiteCam.close()">✕</button></div>' +
       '<div class="sc-body">' +
+      (TPL ? '<div class="sublab">Stage (optional)</div><div class="sc-stage"><select id="sc-stg" class="loc-in"><option value="">— photo only —</option>' + TPL.st.map(function (s) { return '<option value="' + s.id + '"' + (s.id === stage ? ' selected' : '') + '>' + s.id + ' ' + e(s.name) + '</option>'; }).join('') + '</select>' +
+        '<select id="sc-stv" class="loc-in"><option value="">evidence only</option><option value="wip">▶ in progress</option><option value="done">✅ done</option></select></div>' : '') +
       '<div class="sublab">Note (printed under the photo)</div>' +
       '<textarea id="sc-note" dir="auto" rows="3" placeholder="Type a note, or tap Dictate and speak"></textarea>' +
       '<div class="sc-voice">' +
@@ -69,6 +72,7 @@ var SiteCam = (function () {
     document.body.style.overflow = 'hidden';
     $('sc-f-cam').onchange = onFile; $('sc-f-lib').onchange = onFile;
     $('sc-note').addEventListener('input', restamp);
+    ['sc-stg', 'sc-stv'].forEach(function (x) { if ($(x)) $(x).addEventListener('change', restamp); });
     var sel = $('sc-lang'); if (sel) sel.onchange = function () { lsSet('sc_lang', sel.value); };
     locate();
     loadPlan(d.baseLevel);
@@ -202,6 +206,8 @@ var SiteCam = (function () {
     lines.push({ t: 'Level ' + d.baseLevel + (GR ? '  ·  Grid ' + GR.text : '') + (d.zone ? '  ·  Zone ' + d.zone : '') + (d.custom ? '' : (d.abbr ? '  ·  ' + d.abbr : '') + (d.area ? '  ·  ' + d.area + ' m²' : '')), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.near) lines.push({ t: 'Near ' + d.near + (ROOMS[d.near] ? ' — ' + ROOMS[d.near].name : ''), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.desc) wrap(ctx, d.desc, tw).slice(0, 2).forEach(function (l) { lines.push({ t: l, sz: f * 0.78, w: '', c: '#d8cdb6' }); });
+    var STG = $('sc-stg') && $('sc-stg').value, TP2 = STG && window.Site && Site.T[Site.tplOf(S.room)];
+    if (TP2) { var sv2 = ($('sc-stv') || {}).value; lines.push({ t: 'Stage ' + STG + ' ' + TP2.by[STG].name + (sv2 === 'done' ? '  —  DONE' : sv2 === 'wip' ? '  —  IN PROGRESS' : ''), sz: f * 0.82, w: 'bold ', c: sv2 === 'done' ? '#9fd4a8' : '#f3c77a' }); }
     if (noteLines.length) { lines.push({ gap: f * 0.45, rule: true }); noteLines.forEach(function (l) { lines.push({ t: l, sz: f * 0.95, w: '', c: '#ffffff', note: 1 }); }); }
     lines.push({ gap: f * 0.45, rule: true });
     lines.push({ t: meta1, sz: f * 0.72, w: '', c: '#bfb4a0' });
@@ -303,6 +309,7 @@ var SiteCam = (function () {
     if (a.some(function (x) { return x.n === S.name; })) return;
     a.push({ n: S.name, t: Date.now(), note: (($('sc-note') || {}).value || '').slice(0, 200) }); lsSet(k, a.slice(-300));
     if (window.Geo) Geo.fromPhoto(S.room, S.srcGeo ? null : S.geo);
+    if (window.Site) { var sg = $('sc-stg'), sv = $('sc-stv'); Site.photoEvent(S.room, sg && sg.value, sv && sv.value, S.name); }
     var c = $('sc-count'); if (c) c.textContent = a.length + ' site photo(s) saved for this room on this phone.';
   }
   function download() {
