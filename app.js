@@ -244,11 +244,11 @@ function renderSiteHome() {
   }
   h += '<div class="gotorow"><input id="goto" class="loc-in" placeholder="Go to room no. (e.g. 4.00.SUP.03)" autocomplete="off"></div><div id="gotolist"></div>';
   if (window.Site) {
-    var L = lv || lastLevel(), c = { ready: 0, wip: 0, blocked: 0, none: 0, handed: 0 };
+    var L = lv || lastLevel(), c = { wip: 0, blocked: 0, none: 0, handed: 0 };
     Object.keys(ROOMS).forEach(function (k) { if (ROOMS[k].baseLevel === L && !ROOMS[k].custom) { var i = Site.roomInfo(k); if (i) c[i.status]++; } });
     var np = Site.proposals().length;
-    h += '<div class="card" onclick="location.hash=\'#/lookahead/' + esc(L) + '\'" style="cursor:pointer"><div class="eyebrow">Level ' + esc(L) + ' today</div><div class="la-kpi">' +
-      '<div class="k ready"><b>' + c.ready + '</b>ready</div><div class="k wip"><b>' + c.wip + '</b>in progress</div><div class="k blocked"><b>' + c.blocked + '</b>blocked</div><div class="k handed"><b>' + c.handed + '</b>handed</div><div class="k none"><b>' + c.none + '</b>to survey</div></div>' +
+    h += '<div class="card" onclick="location.hash=\'#/lookahead/' + esc(L) + '\'" style="cursor:pointer"><div class="eyebrow">Level ' + esc(L) + ' today</div><div class="la-kpi four">' +
+      '<div class="k wip"><b>' + c.wip + '</b>in progress</div><div class="k blocked"><b>' + c.blocked + '</b>blocked</div><div class="k handed"><b>' + c.handed + '</b>complete</div><div class="k none"><b>' + c.none + '</b>to survey</div></div>' +
       (np ? '<div class="site-prop">🤖 ' + np + ' proposed update(s) to review</div>' : '') + '<div class="small"><span class="site-sync loc-sync"></span></div></div>';
   }
   app.innerHTML = h;
@@ -402,7 +402,7 @@ function openPlanBrowse(level) {
   h += '<div class="levelpicker">';
   LEVELS.forEach(function (l) { h += '<button class="' + (l === level ? 'active' : '') + '" onclick="location.hash=\'#/plan/' + l + '\'">Level ' + l + '</button>'; });
   h += '</div>';
-  h += '<div class="pin-legend"><i class="st-ready"></i>open <i class="st-wip"></i>in progress <i class="st-blocked"></i>blocked <i class="st-handed"></i>handed <i></i>not surveyed</div><div id="loc-banner"></div>';
+  h += '<div class="pin-legend"><i class="st-wip"></i>in progress <i class="st-blocked"></i>blocked <i class="st-handed"></i>complete <i></i>not surveyed</div><div id="loc-banner"></div>';
   h += '<div class="planwrap" id="pvb"><canvas></canvas><div class="dotlayer" style="position:absolute;inset:0;pointer-events:none"></div>' +
     '<div id="pvlvl">LEVEL ' + esc(level) + '</div><div class="pvstat-el" id="pvstat"></div></div>';
   h += '<div class="fab-wrap" id="fabw"><div class="fab-menu">' +

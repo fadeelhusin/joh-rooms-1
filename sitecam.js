@@ -40,7 +40,7 @@ var SiteCam = (function () {
     var d = ROOMS[id]; if (!d) return;
     closeSheet();
     S.room = id; S.img = null; S.blob = null;
-    var TPL = window.Site && Site.T[Site.tplOf(id)];
+    var OPTS = window.Site && Site.photoOptions(id, stage);
     var lang = lsGet('sc_lang', 'ar-SA');
     var m = $('sc-modal');
     if (!m) { m = document.createElement('div'); m.id = 'sc-modal'; document.body.appendChild(m); }
@@ -50,8 +50,8 @@ var SiteCam = (function () {
       '<div class="sc-sub">' + e(d.name || '') + ' · Level ' + e(d.baseLevel) + (d.zone ? ' · Zone ' + e(d.zone) : '') + '</div></div>' +
       '<button class="sc-x" aria-label="Close" onclick="SiteCam.close()">✕</button></div>' +
       '<div class="sc-body">' +
-      (TPL ? '<div class="sublab">Stage (optional)</div><div class="sc-stage"><select id="sc-stg" class="loc-in"><option value="">— photo only —</option>' + TPL.st.map(function (s) { return '<option value="' + s.id + '"' + (s.id === stage ? ' selected' : '') + '>' + s.id + ' ' + e(s.name) + '</option>'; }).join('') + '</select>' +
-        '<select id="sc-stv" class="loc-in"><option value="">evidence only</option><option value="wip">▶ in progress</option><option value="done">✅ done</option></select></div>' : '') +
+      (OPTS ? '<div class="sublab">Stage shown in the photo (optional)</div><select id="sc-stg" class="loc-in">' + OPTS + '</select>' +
+        '<label class="sc-done"><input type="checkbox" id="sc-stv" checked> Mark this stage done (and all before it)</label>' : '') +
       '<div class="sublab">Note (printed under the photo)</div>' +
       '<textarea id="sc-note" dir="auto" rows="3" placeholder="Type a note, or tap Dictate and speak"></textarea>' +
       '<div class="sc-voice">' +
@@ -206,8 +206,8 @@ var SiteCam = (function () {
     lines.push({ t: 'Level ' + d.baseLevel + (GR ? '  ·  Grid ' + GR.text : '') + (d.zone ? '  ·  Zone ' + d.zone : '') + (d.custom ? '' : (d.abbr ? '  ·  ' + d.abbr : '') + (d.area ? '  ·  ' + d.area + ' m²' : '')), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.near) lines.push({ t: 'Near ' + d.near + (ROOMS[d.near] ? ' — ' + ROOMS[d.near].name : ''), sz: f * 0.78, w: '', c: '#d8cdb6' });
     if (d.custom && d.desc) wrap(ctx, d.desc, tw).slice(0, 2).forEach(function (l) { lines.push({ t: l, sz: f * 0.78, w: '', c: '#d8cdb6' }); });
-    var STG = $('sc-stg') && $('sc-stg').value, TP2 = STG && window.Site && Site.T[Site.tplOf(S.room)];
-    if (TP2) { var sv2 = ($('sc-stv') || {}).value; lines.push({ t: 'Stage ' + STG + ' ' + TP2.by[STG].name + (sv2 === 'done' ? '  —  DONE' : sv2 === 'wip' ? '  —  IN PROGRESS' : ''), sz: f * 0.82, w: 'bold ', c: sv2 === 'done' ? '#9fd4a8' : '#f3c77a' }); }
+    var STG = $('sc-stg') && $('sc-stg').value, SL = STG && window.Site && Site.photoLabel(S.room, STG);
+    if (SL) { var sv2 = ($('sc-stv') || {}).checked; lines.push({ t: SL + (sv2 ? '  —  DONE' : ''), sz: f * 0.82, w: 'bold ', c: sv2 ? '#9fd4a8' : '#f3c77a' }); }
     if (noteLines.length) { lines.push({ gap: f * 0.45, rule: true }); noteLines.forEach(function (l) { lines.push({ t: l, sz: f * 0.95, w: '', c: '#ffffff', note: 1 }); }); }
     lines.push({ gap: f * 0.45, rule: true });
     lines.push({ t: meta1, sz: f * 0.72, w: '', c: '#bfb4a0' });
@@ -309,7 +309,7 @@ var SiteCam = (function () {
     if (a.some(function (x) { return x.n === S.name; })) return;
     a.push({ n: S.name, t: Date.now(), note: (($('sc-note') || {}).value || '').slice(0, 200) }); lsSet(k, a.slice(-300));
     if (window.Geo) Geo.fromPhoto(S.room, S.srcGeo ? null : S.geo);
-    if (window.Site) { var sg = $('sc-stg'), sv = $('sc-stv'); Site.photoEvent(S.room, sg && sg.value, sv && sv.value, S.name); }
+    if (window.Site) { var sg = $('sc-stg'), sv = $('sc-stv'); Site.photoEvent(S.room, sg && sg.value, sv && sv.checked, S.name); }
     if (window.markHere) markHere(S.room);
   }
   function download() {

@@ -1,15 +1,15 @@
 /* ============================================================
-   JOH Room Storyboard — SITE STATUS & LOOK-AHEAD
-   • Every room gets a stage template by room type
-     (A BOH Dry · B Wet · C FOH Decorative · D Technical · E Theatre interfaces).
-   • On site: mark stages ▶ in progress / ✅ done (walk-down: "done up to here"),
-     log ⛔ blockers (RFI, material approval, shop drawing, MEP, access…).
-   • Everything is an event in data/site-log.json, shared with the team
-     through the same GitHub token as locations (⚙ Sync).
-   • Proposed updates (e.g. from Claude's photo review) arrive as proposals
-     you Accept / Reject in the Review list.
-   • Look-ahead: rooms that can OPEN this week, will open next week,
-     are in progress, or are blocked — with Excel export.
+   JOH Room Storyboard — SITE STATUS (by surface) & LOOK-AHEAD
+   • Each room's surfaces come from the Room Finishes Database
+     (finishes.js): floor, skirting, every wall finish, ceiling, each door.
+   • Each surface has the full stage sequence for its finish type,
+     one checkbox per stage. Stages are sequential: ticking a later
+     stage completes every stage before it; unticking clears it and
+     everything after it.
+   • ⛔ Blockers per room, proposals to review, shared through
+     data/site-log.json (⚙ Sync token).
+   • Look-ahead: the next stage of every surface = work that can be
+     opened this week; the one after = next week.
    ============================================================ */
 var Site = (function () {
   var PATH = 'data/site-log.json', K_SH = 'joh_site_shared', K_P = 'joh_site_pend', K_USER = 'joh_user';
@@ -20,46 +20,32 @@ var Site = (function () {
   function tok() { return window.Locs ? Locs.gh.token() : ''; }
   function toast(m) { if (window.Locs) Locs.toast(m); }
 
-  /* ---------- stage templates ---------- */
-  var T = {
-    A: { name: 'BOH Dry', st: [
-      ['A1', 'Setting-out & partitions / blockwork'], ['A2', '1st-fix MEP (walls & ceiling void)', 'A1'], ['A3', 'Boarding, insulation & close-up inspection', 'A2'],
-      ['A4', 'Ceiling grid / bulkheads', 'A3'], ['A5', 'Wall prep & paint 1st coat', 'A3'], ['A6', 'Flooring & skirting', 'A5'],
-      ['A7', 'Doors, frames & ironmongery', 'A6'], ['A8', '2nd-fix MEP & ceiling close', 'A4,A5'], ['A9', 'Final paint & clean', 'A7,A8'],
-      ['A10', 'FF&E install', 'A9'], ['A11', 'Snag & handover', 'A10']] },
-    B: { name: 'Wet room', st: [
-      ['B1', 'Setting-out & blockwork / partitions'], ['B2', '1st-fix MEP & plumbing', 'B1'], ['B3', 'Boarding / render & close-up inspection', 'B2'],
-      ['B4', 'Waterproofing & flood test', 'B3'], ['B5', 'Screed & falls', 'B4'], ['B6', 'Wall tiling / cladding', 'B4'], ['B7', 'Floor tiling', 'B5,B6'],
-      ['B8', 'Moisture-resistant ceiling', 'B3'], ['B9', 'Doors, cubicles & vanity joinery', 'B7'], ['B10', 'Sanitaryware & 2nd-fix MEP', 'B7,B8'],
-      ['B11', 'Paint, sealants & clean', 'B9,B10'], ['B12', 'Snag & handover', 'B11']] },
-    C: { name: 'FOH Decorative', st: [
-      ['C1', 'Setting-out & substrate / partitions'], ['C2', '1st-fix MEP & services coordination', 'C1'], ['C3', 'Mock-up / sample approval on site'],
-      ['C4', 'Substrate close-up inspection', 'C2'], ['C5', 'Feature ceilings / GRG', 'C4'], ['C6', 'Wall cladding (stone / timber / GRG)', 'C3,C4'],
-      ['C7', 'Floor finishes (stone / carpet / timber)', 'C6'], ['C8', 'Bespoke joinery & doors', 'C7'], ['C9', 'Feature lighting & 2nd-fix MEP', 'C5'],
-      ['C10', 'Final finishes, protection & clean', 'C8,C9'], ['C11', 'FF&E / loose furniture', 'C10'], ['C12', 'Snag & handover', 'C11']] },
-    D: { name: 'Technical', st: [
-      ['D1', 'Blockwork / partitions & openings'], ['D2', 'MEP installation', 'D1'], ['D3', 'Wall paint / dust sealing', 'D1'],
-      ['D4', 'Floor epoxy / sealer', 'D3'], ['D5', 'Doors, louvres & access control', 'D4'], ['D6', 'MEP T&C and handover docs', 'D2,D5'], ['D7', 'Snag & handover', 'D6']] },
-    E: { name: 'Theatre interfaces', st: [
-      ['E1', 'Area released to specialist'], ['E2', 'Structure / MEP interfaces closed (hold point)', 'E1'], ['E3', 'Acoustic hold-point inspection', 'E2'],
-      ['E4', 'Specialist finishes & seating', 'E3'], ['E5', 'Stage / technical systems interfaces', 'E3'], ['E6', 'Joint inspection & handover', 'E4,E5']] }
+  /* ---------- stage sequences per finish type ---------- */
+  var KINDS = {
+    fl_coat: ['Slab clean & level survey', 'Screed laid & cured', 'Surface prep / grinding', 'Primer / base coat', 'Finish coat / densifier', 'Protection', 'Inspection & sign-off'],
+    fl_tile: ['Level survey & setting-out', 'Screed / waterproofing (wet areas)', 'Sample / dry-lay approval', 'Laying', 'Grouting & movement joints', 'Polish / seal', 'Protection', 'Inspection & sign-off'],
+    fl_timber: ['Substrate ready & moisture test', 'Acoustic / membrane layer', 'Laying', 'Sanding & oil / paint', 'Protection', 'Inspection & sign-off'],
+    fl_carpet: ['Screed level & moisture test', 'Underlay / adhesive', 'Carpet laid', 'Trims & thresholds', 'Inspection & sign-off'],
+    fl_metal: ['Support frame / pedestals', 'Grating / plate fixed', 'Edge trims & fixings', 'Inspection & sign-off'],
+    fl_generic: ['Substrate ready', 'Base layer', 'Finish installed', 'Protection', 'Inspection & sign-off'],
+    sk: ['Wall finish ready at base', 'Skirting installed', 'Joints / sealant / touch-up', 'Inspection & sign-off'],
+    wl_paint: ['Substrate complete', '1st-fix MEP chased & closed', 'Render / skim / board jointing', 'Primer & 1st coat', 'Final coat', 'Inspection & sign-off'],
+    wl_tile: ['Substrate complete', '1st-fix MEP closed', 'Render / cement board', 'Waterproofing (wet areas)', 'Tiling', 'Grout & silicone', 'Inspection & sign-off'],
+    wl_stone: ['Substrate complete', 'Brackets / sub-frame', 'Sample / mock-up approval', 'Stone installed', 'Pointing & sealing', 'Protection', 'Inspection & sign-off'],
+    wl_clad: ['Substrate complete', 'Sub-frame / battens', 'Mock-up approval', 'Panels installed', 'Adjust, trims & protection', 'Inspection & sign-off'],
+    wl_acoustic: ['Structure / substrate', 'Acoustic hold-point inspection', 'Sub-frame', 'Acoustic finish installed', 'Inspection & sign-off'],
+    wl_exposed: ['Surface repair & make-good', 'Sealer / paint', 'Inspection & sign-off'],
+    cl_board: ['Hangers & MF grid', 'MEP above ceiling closed (inspection)', 'Boarding', 'Jointing & access panels', 'Paint', 'Fixtures 2nd fix', 'Inspection & sign-off'],
+    cl_grid: ['Hangers & grid', 'MEP above ceiling closed (inspection)', 'Tiles installed', 'Fixtures cut-in', 'Inspection & sign-off'],
+    cl_acplaster: ['Frame & substrate boards', 'MEP above ceiling closed (inspection)', 'Acoustic panels', 'Acoustic plaster coats', 'Final texture / finish', 'Inspection & sign-off'],
+    cl_clad: ['Hangers & sub-frame', 'MEP above ceiling closed (inspection)', 'Mock-up approval', 'Panels installed', 'Fixtures & trims', 'Inspection & sign-off'],
+    cl_exposed: ['Services & soffit make-good', 'Sealer / paint / insulation', 'Inspection & sign-off'],
+    door: ['Frame installed', 'Wall finished around frame', 'Leaf hung', 'Ironmongery fitted', 'Final adjust & finish', 'Access control / fire tag & sign-off']
   };
-  Object.keys(T).forEach(function (k) {
-    T[k].by = {};
-    T[k].st = T[k].st.map(function (s) { var o = { id: s[0], name: s[1], after: s[2] ? s[2].split(',') : [] }; T[k].by[o.id] = o; return o; });
-  });
-  var WET = /toilet|sanitar|\bwc\b|ablution|shower|kitchen|pantry|servery|cleaner|kitchenette|coldroom|cold room|wash|laundry|sluice/i;
-  var FOHN = /foyer|lounge|entrance|caf[eé]|bar\b|vip|lobby|prayer|reception|hall\b/i;
-  function tplOf(id) {
-    var r = ROOMS[id]; if (!r) return null;
-    if (r.custom) return null;
-    var a = r.abbr, n = r.name || '';
-    if (/^(LTS|MTS|LTA|MTA|REH|RHE)$/.test(a)) return 'E';
-    if (/^(TEC|SHA|VEC|LOA)$/.test(a)) return 'D';
-    if (/^(TOI|TOIL)$/.test(a) || WET.test(n)) return 'B';
-    if (/^(FOY|VIP|PRA|EDU)$/.test(a) || (a === 'CAT' && /seating|caf|bar|restaurant/i.test(n)) || FOHN.test(n)) return 'C';
-    return 'A';
-  }
+  var CAT = { floor: 'Floor', skirting: 'Skirting', wall: 'Walls', ceiling: 'Ceiling', door: 'Doors' };
+  var CAT_ORDER = ['wall', 'ceiling', 'floor', 'skirting', 'door'];
+  function surfaces(id) { return (window.FIN_ROOMS && FIN_ROOMS[id]) || []; }
+  function surfLabel(sf) { return CAT[sf.c].replace(/s$/, '') + (sf.mark ? ' ' + sf.mark.split('.').pop() : sf.code ? ' ' + sf.code : ''); }
   var BLOCK_TYPES = ['RFI / TQ', 'Material approval', 'Shop drawing', 'MEP not closed', 'Area not released / access', 'Damage / rework', 'Other'];
 
   /* ---------- shared event log ---------- */
@@ -116,190 +102,201 @@ var Site = (function () {
   /* ---------- state from events ---------- */
   function state() {
     if (STATE) return STATE;
-    var S = {}, handled = {};
-    var evs = events();
+    var S = {}, handled = {}, evs = events();
     evs.forEach(function (v) { if (v.k === 'acc' || v.k === 'rej') handled[v.ref] = v.k; });
-    function room(id) { return S[id] || (S[id] = { st: {}, bl: {}, last: null, photos: 0 }); }
+    function room(id) { return S[id] || (S[id] = { f: {}, fby: {}, bl: {}, last: null }); }
     evs.forEach(function (v) {
       if (v.p && handled[v.id] !== 'acc') return;           // proposals count only once accepted
-      var r = room(v.room); r.last = v;
-      if (v.k === 'st') {
-        var tp = T[tplOf(v.room)];
-        if (v.v === 'clear') { delete r.st[v.stage]; return; }
-        r.st[v.stage] = { v: v.v, t: v.t, by: v.by };
-        if (tp && ((v.v === 'done' && v.all) || v.v === 'wip')) {   // walk-down / a started stage: everything before it is done
-          var mark = function (sid) { var s = tp.by[sid]; if (!s) return; s.after.forEach(function (a) { if (!r.st[a] || r.st[a].v !== 'done') r.st[a] = { v: 'done', t: v.t, by: v.by, auto: 1 }; mark(a); }); };
-          mark(v.stage);
-        }
-      } else if (v.k === 'bl') r.bl[v.id] = { type: v.type, text: v.text, stage: v.stage, t: v.t, by: v.by, open: true };
+      var r = room(v.room); if (v.k !== 'acc' && v.k !== 'rej') r.last = v;
+      if (v.k === 'fin') { r.f[v.s] = v.n; r.fby[v.s] = { by: v.by, t: v.t }; }
+      else if (v.k === 'bl') r.bl[v.id] = { type: v.type, text: v.text, s: v.s, t: v.t, by: v.by, open: true };
       else if (v.k === 'ok' && r.bl[v.ref]) { r.bl[v.ref].open = false; r.bl[v.ref].closed = v.t; }
-      else if (v.k === 'photo') r.photos++;
     });
     STATE = { rooms: S, handled: handled };
     return STATE;
   }
   function roomInfo(id) {
-    var tk = tplOf(id), tp = T[tk]; if (!tp) return null;
-    var r = state().rooms[id] || { st: {}, bl: {}, last: null };
-    var done = function (s) { return r.st[s] && r.st[s].v === 'done'; };
-    var wip = function (s) { return r.st[s] && r.st[s].v === 'wip'; };
-    var next = tp.st.filter(function (s) { return !done(s.id) && !wip(s.id) && s.after.every(done); });
-    var soon = tp.st.filter(function (s) { return !done(s.id) && !wip(s.id) && !s.after.every(done) && s.after.every(function (a) { return done(a) || wip(a); }); });
+    var sf = surfaces(id); if (!sf.length) return null;
+    var r = state().rooms[id] || { f: {}, fby: {}, bl: {}, last: null };
+    var tot = 0, done = 0, touched = false;
+    var list = sf.map(function (x) {
+      var st = KINDS[x.k] || KINDS.fl_generic, n = Math.min(r.f[x.id] || 0, st.length);
+      if (r.f[x.id] != null) touched = true;
+      tot += st.length; done += n;
+      return { sf: x, st: st, n: n, next: n < st.length ? st[n] : null, after: n + 1 < st.length ? st[n + 1] : null, by: r.fby[x.id] };
+    });
     var blk = Object.keys(r.bl).map(function (k) { var b = r.bl[k]; b.id = k; return b; }).filter(function (b) { return b.open; });
-    var nDone = tp.st.filter(function (s) { return done(s.id); }).length;
-    var status = !Object.keys(r.st).length && !blk.length ? 'none' : nDone === tp.st.length ? 'handed' : blk.length ? 'blocked' : next.length ? 'ready' : 'wip';
-    return { tk: tk, tp: tp, r: r, done: done, wip: wip, next: next, soon: soon, blk: blk, nDone: nDone, status: status,
-      inprog: tp.st.filter(function (s) { return wip(s.id); }) };
+    var status = !touched && !blk.length ? 'none' : done === tot ? 'handed' : blk.length ? 'blocked' : 'wip';
+    return { list: list, blk: blk, r: r, pct: tot ? Math.round(done / tot * 100) : 0, done: done, tot: tot, status: status };
   }
   function pinClass(id) { var i = roomInfo(id); return i ? 'st-' + i.status : ''; }
 
-  /* ---------- room page section ---------- */
+  /* ---------- room page: surfaces with checkbox stages ---------- */
   function roomSection(id) {
-    var i = roomInfo(id); if (!i) return '';
+    var i = roomInfo(id);
     setTimeout(status, 0);
-    var h = '<h2 class="sec">Site Status<span class="n">' + e(i.tp.name) + ' · ' + i.nDone + '/' + i.tp.st.length + '</span></h2><div class="card site-card">';
+    if (!i) return '<div class="card small">No finishes in the Room Schedule for this room.</div>';
+    var h = '<h2 class="sec">Finishes progress<span class="n">' + i.pct + '%</span></h2>';
     var pr = proposals().filter(function (p) { return p.room === id; });
-    if (pr.length) h += '<div class="site-prop">🤖 ' + pr.length + ' proposed update(s) waiting — <a href="#/lookahead" onclick="">review</a></div>';
+    if (pr.length) h += '<div class="site-prop">🤖 ' + pr.length + ' proposed update(s) — review in Look-ahead</div>';
     if (i.blk.length) {
-      h += '<div class="sublab" style="color:var(--red)">⛔ Open blockers</div>';
-      i.blk.forEach(function (b) { h += '<div class="site-bl"><div><b>' + e(b.type) + '</b>' + (b.stage ? ' · ' + e(b.stage) : '') + '<div class="small" dir="auto">' + e(b.text || '') + ' — ' + e(b.by) + ' ' + e(b.t.slice(0, 10)) + '</div></div><button class="btn ghost" onclick="Site.resolve(\'' + e(id) + '\',\'' + b.id + '\')">Resolve</button></div>'; });
+      i.blk.forEach(function (b) { h += '<div class="site-bl"><div><b>⛔ ' + e(b.type) + '</b>' + (b.s ? ' · ' + e(b.s) : '') + '<div class="small" dir="auto">' + e(b.text || '') + ' — ' + e(b.by) + ' ' + e((b.t || '').slice(0, 10)) + '</div></div><button class="btn ghost" onclick="Site.resolve(\'' + e(id) + '\',\'' + b.id + '\')">Resolve</button></div>'; });
     }
-
-    i.tp.st.forEach(function (s) {
-      var st = i.r.st[s.id], ready = !st && s.after.every(i.done);
-      var ic = st ? (st.v === 'done' ? '✅' : '▶') : ready ? '🟢' : '·';
-      h += '<div class="site-st ' + (st ? st.v : ready ? 'ready' : 'locked') + '" onclick="Site.stageMenu(\'' + e(id) + '\',\'' + s.id + '\')"><span class="ic">' + ic + '</span><span class="sid">' + s.id + '</span><span class="snm">' + e(s.name) + '</span>' +
-        (st ? '<span class="sby">' + e(st.by || '') + ' ' + e((st.t || '').slice(5, 10)) + '</span>' : ready ? '<span class="sby">ready to open</span>' : '') + '</div>';
+    CAT_ORDER.forEach(function (c) {
+      var items = i.list.filter(function (x) { return x.sf.c === c; }); if (!items.length) return;
+      h += '<div class="fin-cat">' + CAT[c] + '</div>';
+      items.forEach(function (x) {
+        var sf = x.sf, ci = (window.FIN_CODES && FIN_CODES[sf.code]) || {}, full = x.n === x.st.length;
+        h += '<details class="fin-s' + (full ? ' full' : '') + '"' + (x.n > 0 && !full ? ' open' : '') + '><summary><span class="fin-code">' + e(sf.code || '—') + '</span><span class="fin-d" dir="auto">' + e(sf.mark ? 'Door ' + sf.mark : sf.d) + '</span>' +
+          '<span class="fin-n">' + x.n + '/' + x.st.length + '</span></summary><div class="body">';
+        if (ci.n || ci.s || sf.sub) h += '<div class="fin-spec">' + (ci.n ? '<b>' + e(ci.n) + '</b>' : '') + (sf.sub ? ' · substrate: ' + e(sf.sub) : '') + (ci.s ? '<div class="small">' + e(ci.s) + '</div>' : '') + '</div>';
+        x.st.forEach(function (nm, k) {
+          var on = k < x.n;
+          h += '<label class="fin-st' + (on ? ' on' : k === x.n ? ' nx' : '') + '"><input type="checkbox"' + (on ? ' checked' : '') + ' onchange="Site.tick(\'' + e(id) + '\',\'' + e(sf.id) + '\',' + k + ')"><span>' + e(nm) + '</span></label>';
+        });
+        if (x.by) h += '<div class="small">Last update ' + e(x.by.by || '') + ' ' + e((x.by.t || '').slice(0, 10)) + '</div>';
+        h += '<div class="fin-acts"><button class="btn ghost" onclick="SiteCam.open(\'' + e(id) + '\',\'' + e(sf.id) + '\')">📷 Photo</button><button class="btn ghost loc-del" onclick="Site.blockDlg(\'' + e(id) + '\',\'' + e(sf.id) + '\')">⛔ Blocker</button></div></div></details>';
+      });
     });
-    h += '<div class="sc-actions"><button class="btn ghost loc-del" onclick="Site.blockDlg(\'' + e(id) + '\')">⛔ Add blocker</button><button class="btn ghost" onclick="SiteCam.open(\'' + e(id) + '\')">📷 Photo</button></div>';
-    h += '<div class="small"><span class="site-sync loc-sync"></span></div></div>';
+    h += '<div class="sc-actions"><button class="btn ghost loc-del" onclick="Site.blockDlg(\'' + e(id) + '\')">⛔ Room blocker</button></div><div class="small"><span class="site-sync loc-sync"></span></div>';
     return h;
   }
-  function stageMenu(id, sid) {
-    var tp = T[tplOf(id)], s = tp.by[sid];
-    Locs.dlg('<div class="sc-head"><div><div class="eyebrow" style="color:#d8cdb6">' + e(id) + ' · ' + e(tp.name) + '</div><div class="rn">' + e(s.id + ' ' + s.name) + '</div></div><button class="sc-x" onclick="Locs.closeDlg()">✕</button></div>' +
-      '<div class="sc-body"><div class="sc-actions" style="flex-direction:column">' +
-      '<button class="btn brass sc-big" onclick="Site.setStage(\'' + e(id) + '\',\'' + sid + '\',\'done\',1)">✅ Done (and everything before it)</button>' +
-      '<button class="btn ghost" onclick="Site.setStage(\'' + e(id) + '\',\'' + sid + '\',\'done\',0)">✅ Done (this stage only)</button>' +
-      '<button class="btn ghost" onclick="Site.setStage(\'' + e(id) + '\',\'' + sid + '\',\'wip\',0)">▶ Started / in progress</button>' +
-      '<button class="btn ghost" onclick="Site.blockDlg(\'' + e(id) + '\',\'' + sid + '\')">⛔ Blocked…</button>' +
-      '<button class="btn ghost" onclick="Site.setStage(\'' + e(id) + '\',\'' + sid + '\',\'clear\',0)">↺ Clear</button>' +
-      '<button class="btn ghost" onclick="Locs.closeDlg();SiteCam.open(\'' + e(id) + '\',\'' + sid + '\')">📷 Photo for this stage</button></div></div>');
-  }
-  function setStage(id, sid, v, all) {
-    add({ room: id, k: 'st', stage: sid, v: v, all: all ? 1 : undefined });
-    Locs.closeDlg(); refresh(); toast(v === 'clear' ? 'Cleared' : v === 'done' ? '✅ ' + sid + ' done' : '▶ ' + sid + ' started');
+  /* sequential: ticking stage k ⇒ stages 0..k done; unticking stage k ⇒ only 0..k-1 done */
+  function tick(id, sid, k) {
+    var i = roomInfo(id), x = i && i.list.filter(function (y) { return y.sf.id === sid; })[0]; if (!x) return;
+    var n = k < x.n ? k : k + 1;
+    add({ room: id, k: 'fin', s: sid, n: n });
+    refresh(); toast(n > x.n ? '✅ ' + x.st[n - 1] : '↺ back to ' + (n ? x.st[n - 1] : 'not started'));
   }
   function blockDlg(id, sid) {
-    var tp = T[tplOf(id)];
+    var sf = surfaces(id);
     Locs.dlg('<div class="sc-head"><div><div class="eyebrow" style="color:#d8cdb6">' + e(id) + '</div><div class="rn">⛔ Add blocker</div></div><button class="sc-x" onclick="Locs.closeDlg()">✕</button></div>' +
       '<div class="sc-body"><div class="sublab">Type</div><select id="bl-type" class="loc-in">' + BLOCK_TYPES.map(function (b) { return '<option>' + e(b) + '</option>'; }).join('') + '</select>' +
-      '<div class="sublab">Stage it blocks</div><select id="bl-stage" class="loc-in"><option value="">(whole room)</option>' + tp.st.map(function (s) { return '<option value="' + s.id + '"' + (s.id === sid ? ' selected' : '') + '>' + s.id + ' ' + e(s.name) + '</option>'; }).join('') + '</select>' +
+      '<div class="sublab">Surface</div><select id="bl-stage" class="loc-in"><option value="">(whole room)</option>' + sf.map(function (s) { return '<option value="' + e(s.id) + '"' + (s.id === sid ? ' selected' : '') + '>' + e(surfLabel(s) + ' · ' + (s.mark ? '' : s.d)) + '</option>'; }).join('') + '</select>' +
       '<div class="sublab">Details (RFI no., material, what\'s missing…)</div><input id="bl-text" class="loc-in" dir="auto" placeholder="e.g. RFI-123 ceiling level clash with duct">' +
       '<div class="sc-actions"><button class="btn brass sc-big" onclick="Site.saveBlock(\'' + e(id) + '\')">Save blocker</button></div></div>');
   }
   function saveBlock(id) {
-    add({ room: id, k: 'bl', type: $('bl-type').value, stage: $('bl-stage').value || undefined, text: ($('bl-text').value || '').trim() });
+    add({ room: id, k: 'bl', type: $('bl-type').value, s: $('bl-stage').value || undefined, text: ($('bl-text').value || '').trim() });
     Locs.closeDlg(); refresh(); toast('⛔ Blocker saved');
   }
   function resolve(id, ref) { if (!confirm('Mark this blocker as resolved?')) return; add({ room: id, k: 'ok', ref: ref }); refresh(); }
-  function photoEvent(id, sid, v, name) { add({ room: id, k: 'photo', stage: sid || undefined, text: name }); if (sid && v) add({ room: id, k: 'st', stage: sid, v: v }); }
+  /* photo tagged with a surface stage: "sid|stageIndex" — marks that stage (and all before) done */
+  function photoOptions(id, sid) {
+    var i = roomInfo(id); if (!i) return '';
+    var o = '<option value="">— photo only —</option>';
+    i.list.forEach(function (x) {
+      o += '<optgroup label="' + e(surfLabel(x.sf) + ' · ' + (x.sf.mark ? 'door' : x.sf.d)) + '">';
+      x.st.forEach(function (nm, k) { o += '<option value="' + e(x.sf.id) + '|' + k + '"' + (x.sf.id === sid && k === x.n ? ' selected' : '') + '>' + (k < x.n ? '✓ ' : '') + e(nm) + '</option>'; });
+      o += '</optgroup>';
+    });
+    return o;
+  }
+  function photoLabel(id, val) {
+    if (!val) return ''; var p = val.split('|'), sf = surfaces(id).filter(function (s) { return s.id === p[0]; })[0]; if (!sf) return '';
+    return surfLabel(sf) + ' · ' + (KINDS[sf.k] || [])[+p[1]];
+  }
+  function photoEvent(id, val, done, name) {
+    add({ room: id, k: 'photo', s: val || undefined, text: name });
+    if (val && done) { var p = val.split('|'), i = roomInfo(id), x = i.list.filter(function (y) { return y.sf.id === p[0]; })[0]; if (x && +p[1] + 1 > x.n) add({ room: id, k: 'fin', s: p[0], n: +p[1] + 1 }); }
+  }
 
   /* ---------- proposals (review queue) ---------- */
   function proposals() { var h = state().handled; return events().filter(function (v) { return v.p && !h[v.id]; }); }
   function accept(pid) { add({ room: (events().filter(function (v) { return v.id === pid; })[0] || {}).room, k: 'acc', ref: pid }); refresh(); }
   function reject(pid) { add({ room: (events().filter(function (v) { return v.id === pid; })[0] || {}).room, k: 'rej', ref: pid }); refresh(); }
   function acceptAll() { proposals().forEach(function (p) { add({ room: p.room, k: 'acc', ref: p.id }); }); refresh(); }
+  function propText(p) {
+    if (p.k === 'fin') { var sf = surfaces(p.room).filter(function (s) { return s.id === p.s; })[0]; return sf ? '✅ ' + surfLabel(sf) + ' → ' + ((KINDS[sf.k] || [])[p.n - 1] || 'not started') : p.s; }
+    if (p.k === 'bl') return '⛔ ' + p.type;
+    return p.k;
+  }
 
   /* ---------- sheet line under a plan pin ---------- */
   function sheetLine(id) {
     var i = roomInfo(id); if (!i) return '';
     if (i.status === 'none') return '<div class="site-line">Not surveyed yet</div>';
-    var t = i.blk.length ? '⛔ ' + i.blk.length + ' blocker(s)' : '';
-    var nx = i.inprog.length ? '▶ ' + i.inprog.map(function (s) { return s.id; }).join(', ') : '';
-    var op = i.next.length ? '🟢 open: ' + i.next.map(function (s) { return s.id + ' ' + s.name; }).slice(0, 2).join(' · ') : '';
-    return '<div class="site-line">' + [t, nx, op].filter(Boolean).map(e).join('  ') + (i.status === 'handed' ? '✅ Handed over' : '') + '</div>';
+    if (i.status === 'handed') return '<div class="site-line">✅ All finishes complete</div>';
+    var nx = i.list.filter(function (x) { return x.next; }).slice(0, 3).map(function (x) { return surfLabel(x.sf) + ': ' + x.next; });
+    return '<div class="site-line">' + (i.blk.length ? '⛔ ' + i.blk.length + ' blocker(s) · ' : '') + i.pct + '% · next: ' + e(nx.join(' · ')) + '</div>';
   }
 
   /* ---------- LOOK-AHEAD page ---------- */
   var LA_LVL = '00';
   function lookahead(level) {
     LA_LVL = level || LA_LVL;
-    var ids = Object.keys(ROOMS).filter(function (k) { return ROOMS[k].baseLevel === LA_LVL && !ROOMS[k].custom && tplOf(k); }).sort();
+    var ids = Object.keys(ROOMS).filter(function (k) { return ROOMS[k].baseLevel === LA_LVL && surfaces(k).length; }).sort();
     var rows = ids.map(function (k) { return { id: k, i: roomInfo(k) }; });
-    var cnt = { none: 0, blocked: 0, ready: 0, wip: 0, handed: 0 };
+    var cnt = { none: 0, blocked: 0, wip: 0, handed: 0 };
     rows.forEach(function (r) { cnt[r.i.status]++; });
-    var h = '<div class="eyebrow" style="padding:4px 2px 0">2-week look-ahead · what can be opened</div><div class="levelpicker">';
+    var h = '<div class="levelpicker">';
     LEVELS.forEach(function (l) { h += '<button class="' + (l === LA_LVL ? 'active' : '') + '" onclick="location.hash=\'#/lookahead/' + l + '\'">Level ' + l + '</button>'; });
-    h += '</div><div class="la-kpi">' +
-      '<div class="k ready"><b>' + cnt.ready + '</b>ready</div><div class="k wip"><b>' + cnt.wip + '</b>in progress</div><div class="k blocked"><b>' + cnt.blocked + '</b>blocked</div>' +
-      '<div class="k handed"><b>' + cnt.handed + '</b>handed over</div><div class="k none"><b>' + cnt.none + '</b>not surveyed</div></div>';
-    h += '<div class="sc-actions"><button class="btn brass" onclick="Site.exportXlsx()">⬇ Excel (look-ahead + status)</button><span class="site-sync loc-sync"></span></div>';
+    h += '</div><div class="la-kpi four">' +
+      '<div class="k wip"><b>' + cnt.wip + '</b>in progress</div><div class="k blocked"><b>' + cnt.blocked + '</b>blocked</div>' +
+      '<div class="k handed"><b>' + cnt.handed + '</b>complete</div><div class="k none"><b>' + cnt.none + '</b>not surveyed</div></div>';
+    h += '<div class="sc-actions"><button class="btn brass" onclick="Site.exportXlsx()">⬇ Excel</button><span class="site-sync loc-sync"></span></div>';
     var pr = proposals().filter(function (p) { return ROOMS[p.room] && ROOMS[p.room].baseLevel === LA_LVL; });
     if (pr.length) {
-      h += '<h2 class="sec">🤖 Proposed updates to review<span class="n">' + pr.length + '</span></h2><div class="card">';
+      h += '<h2 class="sec">🤖 Review<span class="n">' + pr.length + '</span></h2><div class="card">';
       pr.forEach(function (p) {
-        var what = p.k === 'st' ? (p.v === 'done' ? '✅ ' : '▶ ') + p.stage + ' ' + ((T[tplOf(p.room)] || { by: {} }).by[p.stage] || {}).name : p.k === 'bl' ? '⛔ ' + p.type : p.k;
-        h += '<div class="geo-row"><span><b>' + e(p.room) + '</b> ' + e(what) + (p.text ? '<br><span class="small" dir="auto">' + e(p.text) + '</span>' : '') + '</span><span style="white-space:nowrap"><button class="btn brass" onclick="Site.accept(\'' + p.id + '\')">✓</button><button class="btn ghost" onclick="Site.reject(\'' + p.id + '\')">✕</button></span></div>';
+        h += '<div class="geo-row"><span><b>' + e(p.room) + '</b> ' + e(propText(p)) + (p.text ? '<br><span class="small" dir="auto">' + e(p.text) + '</span>' : '') + '</span><span style="white-space:nowrap"><button class="btn brass" onclick="Site.accept(\'' + p.id + '\')">✓</button><button class="btn ghost" onclick="Site.reject(\'' + p.id + '\')">✕</button></span></div>';
       });
       h += '<button class="btn ghost" onclick="Site.acceptAll()">Accept all</button></div>';
     }
-    // group: open this week (by stage), opening next week, blocked, in progress
-    var byStage = {}, soon = {}, blocked = [], wip = [];
+    var w1 = {}, w2 = {}, blocked = [];
     rows.forEach(function (r) {
-      var i = r.i;
-      if (i.status === 'none' || i.status === 'handed') return;   // only surveyed rooms feed the plan
-      if (i.blk.length) blocked.push(r);
-      else i.next.forEach(function (s) { (byStage[s.name] = byStage[s.name] || []).push(r.id); });
-      if (!i.blk.length) i.soon.forEach(function (s) { (soon[s.name] = soon[s.name] || []).push(r.id); });
-      if (i.inprog.length) wip.push(r);
+      var i = r.i; if (i.status === 'none' || i.status === 'handed') return;
+      if (i.blk.length) { blocked.push(r); }
+      var bs = {}; i.blk.forEach(function (b) { bs[b.s || '*'] = 1; });
+      i.list.forEach(function (x) {
+        if (!x.next || bs['*'] || bs[x.sf.id]) return;
+        var k1 = CAT[x.sf.c] + ' · ' + x.next; (w1[k1] = w1[k1] || []).push(r.id);
+        if (x.after) { var k2 = CAT[x.sf.c] + ' · ' + x.after; (w2[k2] = w2[k2] || []).push(r.id); }
+      });
     });
-    var grp = function (title, cls, map) {
-      var keys = Object.keys(map).sort(function (a, b) { return map[b].length - map[a].length; });
-      var x = '<h2 class="sec">' + title + '<span class="n">' + keys.reduce(function (n, k) { return n + map[k].length; }, 0) + '</span></h2>';
-      if (!keys.length) return x + '<div class="card small">Nothing yet.</div>';
+    var grp = function (title, map) {
+      var keys = Object.keys(map).sort(function (a, b) { return a < b ? -1 : 1; });
+      var x = '<h2 class="sec">' + title + '<span class="n">' + keys.length + ' activities</span></h2>';
+      if (!keys.length) return x + '<div class="card small">Nothing yet — tick stages on site to build the plan.</div>';
       keys.forEach(function (k) {
-        x += '<details class="la-grp ' + cls + '"><summary>' + e(k) + '<span class="cnt">' + map[k].length + '</span></summary><div class="body">' +
-          map[k].map(function (id) { return '<span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(id) + '\'">' + e(id) + ' · ' + e(ROOMS[id].name || '') + '</span>'; }).join('') + '</div></details>';
+        var u = map[k].filter(function (v, j, a) { return a.indexOf(v) === j; });
+        x += '<details class="la-grp"><summary>' + e(k) + '<span class="cnt">' + u.length + '</span></summary><div class="body">' +
+          u.map(function (id) { return '<span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(id) + '\'">' + e(id) + ' · ' + e(ROOMS[id].name || '') + '</span>'; }).join('') + '</div></details>';
       });
       return x;
     };
-    h += grp('🟢 Week 1 — can open now', 'ready', byStage);
-    h += grp('🟡 Week 2 — opens when current work finishes', 'soon', soon);
+    h += grp('🟢 This week — can open now', w1);
+    h += grp('🟡 Next week — follows on', w2);
     h += '<h2 class="sec">⛔ Blocked<span class="n">' + blocked.length + '</span></h2><div class="card">' + (blocked.length ? '' : '<span class="small">No open blockers.</span>');
     blocked.forEach(function (r) { h += '<div class="geo-row" onclick="location.hash=\'#/room/' + encodeURIComponent(r.id) + '\'" style="cursor:pointer"><span><b>' + e(r.id) + '</b> ' + e(ROOMS[r.id].name || '') + '<br><span class="small">' + r.i.blk.map(function (b) { return e(b.type + (b.text ? ': ' + b.text : '')); }).join(' · ') + '</span></span></div>'; });
-    h += '</div><h2 class="sec">▶ In progress<span class="n">' + wip.length + '</span></h2><div class="card">' + (wip.length ? '' : '<span class="small">Nothing marked in progress.</span>');
-    wip.forEach(function (r) { h += '<span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(r.id) + '\'">' + e(r.id) + ' · ' + r.i.inprog.map(function (s) { return s.id; }).join(', ') + '</span>'; });
     h += '</div>';
-    if (cnt.none) h += '<div class="card small">' + cnt.none + ' room(s) on this level have no site status yet — walk-down: open the Plan, tap a pin → Site Status.</div>';
     document.getElementById('app').innerHTML = h;
     setTimeout(status, 0);
   }
   function loadXlsx() { return new Promise(function (res, rej) { if (window.XLSX) return res(); var s = document.createElement('script'); s.src = 'vendor/xlsx.mini.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
   function exportXlsx() {
     loadXlsx().then(function () {
-      var ids = Object.keys(ROOMS).filter(function (k) { return !ROOMS[k].custom && tplOf(k); }).sort();
+      var ids = Object.keys(ROOMS).filter(function (k) { return surfaces(k).length; }).sort();
       var today = new Date(), wk = function (n) { var d = new Date(today); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-      var la = [['Level', 'Room', 'Name', 'Grid', 'Template', 'Look-ahead', 'Stage to open', 'Window', 'Blockers', 'In progress', 'Stages done', 'Last update', 'By']];
-      var st = [['Level', 'Room', 'Name', 'Grid', 'Template', 'Status', 'Done', 'Of', 'In progress', 'Next', 'Open blockers', 'Last update']];
-      var bl = [['Level', 'Room', 'Name', 'Type', 'Stage', 'Details', 'Raised', 'By']];
+      var la = [['Level', 'Room', 'Name', 'Grid', 'Surface', 'Code', 'Finish', 'Week', 'Window', 'Activity', 'Stage no.', 'Blocked by']];
+      var sf = [['Level', 'Room', 'Name', 'Grid', 'Surface', 'Code', 'Finish', 'Done', 'Of', '%', 'Last completed stage', 'Next stage', 'Updated', 'By']];
+      var bl = [['Level', 'Room', 'Name', 'Type', 'Surface', 'Details', 'Raised', 'By']];
       ids.forEach(function (k) {
         var r = ROOMS[k], i = roomInfo(k), g = window.Grid && Grid.ofRoom(k), gr = g ? g.text : '';
-        var last = i.r.last ? i.r.last.t.slice(0, 10) : '', by = i.r.last ? i.r.last.by : '';
-        var bls = i.blk.map(function (b) { return b.type + (b.text ? ': ' + b.text : ''); }).join(' | ');
-        i.blk.forEach(function (b) { bl.push([r.baseLevel, k, r.name, b.type, b.stage || '', b.text || '', (b.t || '').slice(0, 10), b.by || '']); });
-        st.push([r.baseLevel, k, r.name, gr, i.tp.name, i.status, i.nDone, i.tp.st.length, i.inprog.map(function (s) { return s.id; }).join(', '), i.next.map(function (s) { return s.id; }).join(', '), bls, last]);
-        if (i.status === 'none' || i.status === 'handed') return;
-        if (i.blk.length) la.push([r.baseLevel, k, r.name, gr, i.tp.name, 'Blocked', i.next.concat(i.soon).map(function (s) { return s.id + ' ' + s.name; }).join(' | '), '', bls, i.inprog.map(function (s) { return s.id; }).join(', '), i.nDone + '/' + i.tp.st.length, last, by]);
-        else {
-          i.next.forEach(function (s) { la.push([r.baseLevel, k, r.name, gr, i.tp.name, 'Week 1 — open now', s.id + ' ' + s.name, wk(0) + ' → ' + wk(6), '', i.inprog.map(function (x) { return x.id; }).join(', '), i.nDone + '/' + i.tp.st.length, last, by]); });
-          i.soon.forEach(function (s) { la.push([r.baseLevel, k, r.name, gr, i.tp.name, 'Week 2 — after current work', s.id + ' ' + s.name, wk(7) + ' → ' + wk(13), '', i.inprog.map(function (x) { return x.id; }).join(', '), i.nDone + '/' + i.tp.st.length, last, by]); });
-        }
+        var bs = {}; i.blk.forEach(function (b) { bs[b.s || '*'] = (bs[b.s || '*'] ? bs[b.s || '*'] + ' | ' : '') + b.type + (b.text ? ': ' + b.text : ''); bl.push([r.baseLevel, k, r.name, b.type, b.s || '(room)', b.text || '', (b.t || '').slice(0, 10), b.by || '']); });
+        i.list.forEach(function (x) {
+          var fin = x.sf.mark ? 'Door ' + x.sf.mark : x.sf.d;
+          sf.push([r.baseLevel, k, r.name, gr, CAT[x.sf.c], x.sf.code, fin, x.n, x.st.length, Math.round(x.n / x.st.length * 100), x.n ? x.st[x.n - 1] : '', x.next || 'Complete', x.by ? (x.by.t || '').slice(0, 10) : '', x.by ? x.by.by : '']);
+          if (i.status === 'none' || !x.next) return;
+          var why = bs['*'] || bs[x.sf.id] || '';
+          la.push([r.baseLevel, k, r.name, gr, CAT[x.sf.c], x.sf.code, fin, why ? 'Blocked' : 'Week 1', why ? '' : wk(0) + ' → ' + wk(6), x.next, x.n + 1, why]);
+          if (x.after && !why) la.push([r.baseLevel, k, r.name, gr, CAT[x.sf.c], x.sf.code, fin, 'Week 2', wk(7) + ' → ' + wk(13), x.after, x.n + 2, '']);
+        });
       });
       var wb = XLSX.utils.book_new();
-      [['Look-ahead', la], ['Room status', st], ['Blockers', bl]].forEach(function (p) {
+      [['Look-ahead', la], ['Surface status', sf], ['Blockers', bl]].forEach(function (p) {
         var ws = XLSX.utils.aoa_to_sheet(p[1]);
-        ws['!cols'] = p[1][0].map(function (h, c) { return { wch: Math.min(48, Math.max(8, h.length + 2, p[1].slice(1, 200).reduce(function (m, row) { return Math.max(m, String(row[c] == null ? '' : row[c]).length); }, 0))) }; });
+        ws['!cols'] = p[1][0].map(function (h, c) { return { wch: Math.min(46, Math.max(7, h.length + 2, p[1].slice(1, 300).reduce(function (m, row) { return Math.max(m, String(row[c] == null ? '' : row[c]).length); }, 0))) }; });
         ws['!autofilter'] = { ref: ws['!ref'] };
         XLSX.utils.book_append_sheet(wb, ws, p[0]);
       });
@@ -310,9 +307,11 @@ var Site = (function () {
   function refresh() {
     STATE = null;
     if (document.querySelector('#loc-dlg.on') || document.querySelector('#sc-modal.on') || document.querySelector('#pvb.adding')) return;
-    var y = window.scrollY; route(); window.scrollTo(0, y);
+    var y = window.scrollY, open = [].map.call(document.querySelectorAll('details.fin-s[open] .fin-code'), function (n) { return n.parentNode.parentNode.querySelector('.fin-d').textContent; });
+    route(); window.scrollTo(0, y);
+    document.querySelectorAll('details.fin-s').forEach(function (d) { if (open.indexOf(d.querySelector('.fin-d').textContent) >= 0) d.open = true; });
   }
   setTimeout(fetchShared, 0);
-  return { T: T, tplOf: tplOf, roomInfo: roomInfo, pinClass: pinClass, roomSection: roomSection, stageMenu: stageMenu, setStage: setStage, blockDlg: blockDlg, saveBlock: saveBlock, resolve: resolve,
-    photoEvent: photoEvent, proposals: proposals, accept: accept, reject: reject, acceptAll: acceptAll, sheetLine: sheetLine, lookahead: lookahead, exportXlsx: exportXlsx, fetchShared: fetchShared, _events: events, _add: add };
+  return { KINDS: KINDS, surfaces: surfaces, roomInfo: roomInfo, pinClass: pinClass, roomSection: roomSection, tick: tick, blockDlg: blockDlg, saveBlock: saveBlock, resolve: resolve,
+    photoOptions: photoOptions, photoLabel: photoLabel, photoEvent: photoEvent, proposals: proposals, accept: accept, reject: reject, acceptAll: acceptAll, sheetLine: sheetLine, lookahead: lookahead, exportXlsx: exportXlsx, fetchShared: fetchShared, _events: events, _add: add };
 })();

@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v9';
+const CACHE = 'joh-storyboard-v10';
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,6 +13,7 @@ const ASSETS = [
   "./grid.js",
   "./geo.js",
   "./site.js",
+  "./finishes.js",
   "./vendor/xlsx.mini.min.js",
   "./data/site-log.json",
   "./vendor/qrcode.min.js",
