@@ -165,6 +165,7 @@ function openRoom(k) {
   var st = d.study || ['', ''];
   var h = '<button class="btn ghost" onclick="history.length>1?history.back():location.hash=\'#/\'">← Back</button>';
   h += '<button class="btn brass" onclick="printRoom(\'' + k + '\')">Export storyboard PDF</button>';
+  h += '<button class="btn brass sc-big sc-sitebtn" onclick="SiteCam.open(\'' + k + '\')">📷 Site Photo</button>';
 
   /* hero */
   h += '<div class="hero" data-curroom="' + esc(k) + '">';
@@ -318,17 +319,17 @@ function renderRoomDocs(k, d) {
 /* ---------- PLAN BROWSE (tap-to-search) ---------- */
 function openPlanBrowse(level) {
   if (LEVELS.indexOf(level) < 0) level = LEVELS[0];
-  var h = '<div class="eyebrow" style="padding:4px 2px 0">Tap a pin to open that room</div>';
+  var h = '<div class="eyebrow" style="padding:4px 2px 0">Tap a room pin → Site Photo or open the room</div>';
   h += '<div class="levelpicker">';
   LEVELS.forEach(function (l) { h += '<button class="' + (l === level ? 'active' : '') + '" onclick="location.hash=\'#/plan/' + l + '\'">Level ' + l + '</button>'; });
   h += '</div>';
   h += '<div class="planwrap" id="pvb"><canvas></canvas><div class="dotlayer" style="position:absolute;inset:0;pointer-events:none"></div>' +
     '<div id="pvlvl">LEVEL ' + esc(level) + '</div><div class="pvstat-el" id="pvstat"></div></div>';
-  h += '<div class="small" style="margin-top:8px">Drag to pan · pinch / scroll to zoom · tap a gold pin to open the room storyboard.</div>';
+  h += '<div class="small" style="margin-top:8px">Drag to pan · pinch / scroll to zoom · tap a gold pin to take a Site Photo or open the room.</div>';
   app.innerHTML = h;
   document.querySelectorAll('#pvb .mkdot').forEach(function () {}); // no-op, dots injected by viewer
   document.querySelector('#pvb .dotlayer').style.pointerEvents = 'auto';
-  Viewer.openBrowse(level, 'pvb', function (roomId) { location.hash = '#/room/' + encodeURIComponent(roomId); });
+  Viewer.openBrowse(level, 'pvb', function (roomId) { if (window.SiteCam) SiteCam.pick(roomId); else location.hash = '#/room/' + encodeURIComponent(roomId); });
 }
 
 /* ---------- MATERIALS ---------- */
