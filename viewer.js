@@ -25,7 +25,7 @@ var Viewer = (function () {
 
   function openRoom(k, containerId) {
     var d = ROOMS[k]; if (!d || !d.pos) return;
-    V.mode = 'room'; V.room = k; V.lvl = d.baseLevel;
+    V.mode = 'room'; V.room = k; V.lvl = d.baseLevel; V.tile = null;
     var dim = META.dims[V.lvl];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -39,7 +39,7 @@ var Viewer = (function () {
   }
 
   function openBrowse(level, containerId, onPick) {
-    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.addFn = null; V.tmp = null; V.tmpR = 0;
+    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.tile = null; V.addFn = null; V.tmp = null; V.tmpR = 0;
     var dim = META.dims[level];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -125,7 +125,25 @@ var Viewer = (function () {
   function scheduleRender() {
     if (!V.pdfPage) return;
     clearTimeout(V.renderTimer);
-    V.renderTimer = setTimeout(function () { renderPdf(needScale(), function () {}); }, 160);
+    V.renderTimer = setTimeout(function () { renderPdf(needScale(), function () { renderTile(); }); }, 220);
+  }
+  /* Sharp view at any zoom: render just the visible part of the vector PDF at the exact screen
+     resolution (the whole-sheet canvas is capped by the phone's canvas limits). */
+  function renderTile() {
+    if (!V.pdfPage || !V.container) return;
+    var s = V.viewScale * V.dpr;
+    if (s <= V.pdfScale * 1.02) { V.tile = null; return; }
+    var cw = V.container.clientWidth, ch = V.container.clientHeight;
+    if (V.tileTask) { try { V.tileTask.cancel(); } catch (x) {} }
+    var c = document.createElement('canvas'); c.width = Math.round(cw * V.dpr); c.height = Math.round(ch * V.dpr);
+    var snap = { vs: V.viewScale, tx: V.tx, ty: V.ty, lvl: V.lvl };
+    var task = V.pdfPage.render({ canvasContext: c.getContext('2d'), viewport: V.pdfPage.getViewport({ scale: s }), transform: [1, 0, 0, 1, V.tx * V.dpr, V.ty * V.dpr], background: 'white' });
+    V.tileTask = task;
+    setStat('sharpening…');
+    task.promise.then(function () {
+      if (snap.lvl !== V.lvl) return;
+      snap.c = c; V.tile = snap; V.tileTask = null; setStat(V.mode === 'browse' ? 'tap a pin to open' : 'plan · sharp'); draw();
+    }).catch(function () {});
   }
 
   function draw() {
@@ -149,6 +167,14 @@ var Viewer = (function () {
         var dx0 = x0 * V.viewScale + V.tx, dy0 = y0 * V.viewScale + V.ty, dw = (x1 - x0) * V.viewScale, dh = (y1 - y0) * V.viewScale;
         ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
         try { ctx.drawImage(src, sx0, sy0, sw, sh, dx0, dy0, dw, dh); } catch (e) {}
+      }
+    }
+    if (V.tile && V.tile.lvl === V.lvl) {                         // sharp overlay of the visible area
+      var t = V.tile, f = V.viewScale / t.vs;
+      if (f > 0.5 && f < 2) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        try { ctx.drawImage(t.c, (V.tx - t.tx * f) * V.dpr, (V.ty - t.ty * f) * V.dpr, t.c.width * f, t.c.height * f); } catch (e) {}
+        ctx.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
       }
     }
     if (V.mode === 'room' && V.mk) {

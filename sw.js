@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v10';
+const CACHE = 'joh-storyboard-v11';
 const ASSETS = [
   "./",
   "./index.html",
