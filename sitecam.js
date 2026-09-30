@@ -57,6 +57,7 @@ var SiteCam = (function () {
         : '') +
       '<span class="small" id="sc-vstat">' + (SR ? '' : 'Tip: tap the 🎤 on your keyboard to dictate into the note.') + '</span></div>' +
       '<div class="small" id="sc-gps">📍 Getting location…</div>' +
+      '<div class="small" id="sc-gps2"></div>' +
       '<div class="sc-actions"><button class="btn brass sc-big" onclick="$sc(\'sc-f-cam\').click()">📷 Take Photo</button>' +
       '<button class="btn ghost" onclick="$sc(\'sc-f-lib\').click()">🖼️ From Gallery</button></div>' +
       '<input type="file" id="sc-f-cam" accept="image/*" capture="environment" hidden>' +
@@ -91,6 +92,7 @@ var SiteCam = (function () {
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
   }
   function dm(v, pos, neg) { var a = Math.abs(v), d = Math.floor(a), m = (a - d) * 60; return (v >= 0 ? pos : neg) + d + '° ' + m.toFixed(3); }
+  function geoNow() { return S.srcGeo || S.geo || null; }
   function fmtGeo(g) { return dm(g.lat, 'N', 'S') + ', ' + dm(g.lon, 'E', 'W'); }
 
   /* ---------- voice → text ---------- */
@@ -134,10 +136,12 @@ var SiteCam = (function () {
     var f = ev.target.files && ev.target.files[0]; ev.target.value = '';
     if (!f) return;
     var url = URL.createObjectURL(f), im = new Image();
+    S.srcGeo = null;
+    var gp = Exif.readGps(f).then(function (g) { S.srcGeo = g; }).catch(function () {});
     im.onload = function () {
       S.img = im; S.taken = new Date(f.lastModified || Date.now());
       if (Math.abs(Date.now() - S.taken) > 864e5 * 400) S.taken = new Date();
-      render(true);
+      gp.then(function () { render(true); });
     };
     im.onerror = function () { URL.revokeObjectURL(url); alert('Could not read that image.'); };
     im.src = url;
@@ -189,7 +193,8 @@ var SiteCam = (function () {
     ctx.font = (f * 0.95) + 'px ' + SANS;
     var nameLines = wrap(ctx, d.name || '', tw).slice(0, 2);
     var meta1 = fmtDate(S.taken || new Date());
-    var meta2 = S.geo ? fmtGeo(S.geo) + '  ±' + Math.round(S.geo.acc) + 'm' : '';
+    var G = geoNow();
+    var meta2 = G ? 'GPS  ' + fmtGeo(G) + (G.acc ? '  ±' + Math.round(G.acc) + 'm' : '') + '   (' + G.lat.toFixed(6) + ', ' + G.lon.toFixed(6) + ')' : 'GPS  not available';
     var lines = [];
     lines.push({ t: S.room, sz: f * 1.3, w: 'bold ', c: '#f3c77a' });
     nameLines.forEach(function (l) { lines.push({ t: l, sz: f * 0.95, w: '600 ', c: '#ffffff' }); });
@@ -271,16 +276,23 @@ var SiteCam = (function () {
         altBtn = canShare ? '<button class="btn ghost" onclick="SiteCam.share()">📤 Share</button>' : '';
         hint = 'Saved to <b>Downloads</b> — it shows in your Gallery / Google Photos under the Downloads album.';
       }
+      var g2 = $('sc-gps2'); if (g2) g2.textContent = S.srcGeo ? '📷 Using the GPS saved in the photo itself.' : '';
       host.innerHTML = '<div class="sublab">Preview</div><img class="sc-img" src="' + URL.createObjectURL(blob) + '" alt="Stamped photo">' +
         '<div class="sc-actions">' + saveBtn + altBtn + '<button class="btn ghost" onclick="$sc(\'sc-f-cam\').click()">📷 Retake</button></div>' +
         '<div class="small">' + hint + ' Edit the note above and the stamp updates.</div>';
       if (scrollTo) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
+    var d = ROOMS[S.room];
+    var fin = function (b) {
+      if (!b) return;
+      Exif.write(b, { geo: geoNow(), date: S.taken || new Date(), desc: S.room + ' - ' + (d.name || '') + ' - Level ' + d.baseLevel })
+        .then(done).catch(function () { done(b); });
+    };
     try {
-      cv.toBlob(function (b) { if (b) done(b); }, 'image/jpeg', 0.9);
+      cv.toBlob(fin, 'image/jpeg', 0.9);
     } catch (x) {                               // canvas tainted (app opened from a local file) → stamp without mini plan
       var cv2 = compose(false);
-      cv2.toBlob(function (b) { if (b) done(b); }, 'image/jpeg', 0.9);
+      cv2.toBlob(fin, 'image/jpeg', 0.9);
     }
   }
 
@@ -311,4 +323,89 @@ var SiteCam = (function () {
 
   window.$sc = $;
   return { pick: pick, open: open, close: close, closeSheet: closeSheet, mic: mic, download: download, share: share, _compose: compose, _S: S };
+})();
+
+/* ============================================================
+   Minimal EXIF: read GPS from a source JPEG, and write GPS +
+   date + description into the stamped JPEG so Google Photos /
+   Apple Photos / Maps place it on the map.
+   ============================================================ */
+var Exif = (function () {
+  function readGps(file) {
+    return file.slice(0, 262144).arrayBuffer().then(function (buf) {
+      var v = new DataView(buf);
+      if (v.getUint16(0) !== 0xFFD8) return null;
+      var o = 2;
+      while (o + 4 < v.byteLength) {
+        var mk = v.getUint16(o), len = v.getUint16(o + 2);
+        if (mk === 0xFFE1 && v.getUint32(o + 4) === 0x45786966) return parseTiff(v, o + 10);
+        if ((mk & 0xFF00) !== 0xFF00 || mk === 0xFFDA) break;
+        o += 2 + len;
+      }
+      return null;
+    });
+  }
+  function parseTiff(v, t) {
+    var le = v.getUint16(t) === 0x4949;
+    var u16 = function (p) { return v.getUint16(t + p, le); }, u32 = function (p) { return v.getUint32(t + p, le); };
+    var ifd = u32(4), n = u16(ifd), gps = 0;
+    for (var i = 0; i < n; i++) { var e = ifd + 2 + i * 12; if (u16(e) === 0x8825) gps = u32(e + 8); }
+    if (!gps) return null;
+    var g = {}, m = u16(gps);
+    for (var j = 0; j < m; j++) {
+      var q = gps + 2 + j * 12, tag = u16(q), off = u32(q + 8);
+      if (tag === 1 || tag === 3) g[tag] = String.fromCharCode(v.getUint8(t + q + 8));
+      if (tag === 2 || tag === 4) { var a = []; for (var k = 0; k < 3; k++) { var den = u32(off + k * 8 + 4); a.push(den ? u32(off + k * 8) / den : 0); } g[tag] = a[0] + a[1] / 60 + a[2] / 3600; }
+    }
+    if (g[2] == null || g[4] == null || (!g[2] && !g[4])) return null;
+    return { lat: g[1] === 'S' ? -g[2] : g[2], lon: g[3] === 'W' ? -g[4] : g[4], acc: 0, fromPhoto: true };
+  }
+
+  /* --- writer (big-endian TIFF) --- */
+  function ascii(s) { s = String(s).replace(/[^\x20-\x7E]/g, '?'); var a = []; for (var i = 0; i < s.length; i++) a.push(s.charCodeAt(i)); a.push(0); return a; }
+  function be32(n) { return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]; }
+  function be16(n) { return [(n >>> 8) & 255, n & 255]; }
+  function rat(list) { var o = []; list.forEach(function (r) { o = o.concat(be32(r[0]), be32(r[1])); }); return o; }
+  function dms(v) { v = Math.abs(v); var d = Math.floor(v), mf = (v - d) * 60, m = Math.floor(mf), s = Math.round((mf - m) * 60 * 10000); return [[d, 1], [m, 1], [s, 10000]]; }
+  // entries: [tag, type, count, bytes]  types: 1 BYTE, 2 ASCII, 4 LONG, 5 RATIONAL
+  function ifdSize(ents) { var s = 2 + ents.length * 12 + 4; ents.forEach(function (e) { if (e[3].length > 4) s += e[3].length + (e[3].length & 1); }); return s; }
+  function ifdBytes(ents, start) {
+    ents.sort(function (a, b) { return a[0] - b[0]; });
+    var head = be16(ents.length), data = [], dataOff = start + 2 + ents.length * 12 + 4;
+    ents.forEach(function (e) {
+      head = head.concat(be16(e[0]), be16(e[1]), be32(e[2]));
+      if (e[3].length <= 4) { var v = e[3].slice(); while (v.length < 4) v.push(0); head = head.concat(v); }
+      else { head = head.concat(be32(dataOff + data.length)); data = data.concat(e[3]); if (data.length & 1) data.push(0); }
+    });
+    return head.concat([0, 0, 0, 0], data);
+  }
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function build(o) {
+    var d = o.date, ds = d.getFullYear() + ':' + p2(d.getMonth() + 1) + ':' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+    var ifd0 = [[0x010E, 2, 0, ascii(o.desc || '')], [0x0131, 2, 0, ascii('JOH Room Storyboard')], [0x0132, 2, 0, ascii(ds)], [0x8769, 4, 1, be32(0)]];
+    if (o.geo) ifd0.push([0x8825, 4, 1, be32(0)]);
+    ifd0.forEach(function (e) { if (e[1] === 2) e[2] = e[3].length; });
+    var exif = [[0x9003, 2, 20, ascii(ds)], [0x9004, 2, 20, ascii(ds)]];
+    var gps = [];
+    if (o.geo) {
+      gps = [[0x0000, 1, 4, [2, 3, 0, 0]], [0x0001, 2, 2, ascii(o.geo.lat >= 0 ? 'N' : 'S')], [0x0002, 5, 3, rat(dms(o.geo.lat))],
+        [0x0003, 2, 2, ascii(o.geo.lon >= 0 ? 'E' : 'W')], [0x0004, 5, 3, rat(dms(o.geo.lon))], [0x0012, 2, 7, ascii('WGS-84')]];
+      if (o.geo.acc) gps.push([0x001F, 5, 1, rat([[Math.round(o.geo.acc * 100), 100]])]);
+    }
+    var off0 = 8, offE = off0 + ifdSize(ifd0), offG = offE + ifdSize(exif);
+    ifd0.forEach(function (e) { if (e[0] === 0x8769) e[3] = be32(offE); if (e[0] === 0x8825) e[3] = be32(offG); });
+    var tiff = [0x4D, 0x4D, 0, 42, 0, 0, 0, 8].concat(ifdBytes(ifd0, off0), ifdBytes(exif, offE), o.geo ? ifdBytes(gps, offG) : []);
+    var body = [0x45, 0x78, 0x69, 0x66, 0, 0].concat(tiff);
+    return new Uint8Array([0xFF, 0xE1].concat(be16(body.length + 2), body));
+  }
+  function write(blob, o) {
+    return blob.arrayBuffer().then(function (buf) {
+      var u = new Uint8Array(buf);
+      if (u[0] !== 0xFF || u[1] !== 0xD8) return blob;
+      var rest = 2;                                        // drop the canvas JFIF APP0 so EXIF is the first segment
+      if (u[2] === 0xFF && u[3] === 0xE0) rest = 4 + ((u[4] << 8) | u[5]);
+      return new Blob([u.subarray(0, 2), build(o), u.subarray(rest)], { type: 'image/jpeg' });
+    });
+  }
+  return { readGps: readGps, write: write };
 })();

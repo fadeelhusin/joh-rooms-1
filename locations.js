@@ -7,15 +7,158 @@
      2. Pick the nearest room → "Add location near here" → the plan
         zooms to that room → tap the exact spot.
    Custom pins behave like rooms: searchable, own page, Site Photo.
-   Stored on this phone; Export / Import to share with the team.
+   SHARED: every pin is saved to data/locations.json in the GitHub
+   repo, so anyone opening the link gets it on open / refresh.
+   Adding needs a GitHub token on the phone (Sync settings);
+   without one, pins wait on the phone as "pending" and upload
+   automatically once a token is set.
    ============================================================ */
 var Locs = (function () {
   var KEY = 'joh_custom_locs';
   var add = null; // {level, near, x, y}
   function $(id) { return document.getElementById(id); }
   function e(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function load() { try { return JSON.parse(localStorage.getItem(KEY) || '[]') || []; } catch (x) { return []; } }
-  function save(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (x) { alert('Could not save on this phone (storage full or private mode).'); } }
+  /* ---------- store: shared (server) + pending edits (this phone) ---------- */
+  var GH = { owner: 'fadeelhusin', repo: 'joh-rooms-1', path: 'data/locations.json', branch: 'main' };
+  var K_SHARED = 'joh_locs_shared', K_DEL = 'joh_locs_del', K_TOKEN = 'joh_gh_token';
+  function lsJ(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (x) { return d; } }
+  function lsS(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (x) { alert('Could not save on this phone (storage full or private mode).'); } }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function shared() { return lsJ(K_SHARED, []) || []; }
+  function pending() { return lsJ(KEY, []) || []; }
+  function dels() { return lsJ(K_DEL, []) || []; }
+  function token() { try { return localStorage.getItem(K_TOKEN) || ''; } catch (x) { return ''; } }
+  function load() {
+    var map = {}, order = [], del = {};
+    dels().forEach(function (id) { del[id] = 1; });
+    shared().forEach(function (l) { if (!del[l.id]) { map[l.id] = l; order.push(l.id); } });
+    pending().forEach(function (l) { if (!map[l.id]) order.push(l.id); map[l.id] = l; });
+    return order.filter(function (id) { return map[id]; }).map(function (id) { return clone(map[id]); });
+  }
+  function save(next) {                       // diff against current view → pending upserts / deletes
+    var cur = {}, nx = {}, p = pending(), d = dels(), sh = {};
+    load().forEach(function (l) { cur[l.id] = JSON.stringify(l); });
+    shared().forEach(function (l) { sh[l.id] = JSON.stringify(l); });
+    next.forEach(function (l) {
+      nx[l.id] = 1;
+      if (cur[l.id] !== JSON.stringify(l)) {
+        p = p.filter(function (x) { return x.id !== l.id; });
+        if (sh[l.id] !== JSON.stringify(l)) p.push(l);
+        d = d.filter(function (x) { return x !== l.id; });
+      }
+    });
+    Object.keys(cur).forEach(function (id) {
+      if (!nx[id]) { p = p.filter(function (x) { return x.id !== id; }); if (sh[id] && d.indexOf(id) < 0) d.push(id); }
+    });
+    lsS(KEY, p); lsS(K_DEL, d);
+    sync();
+  }
+  function isPending(id) { return pending().some(function (l) { return l.id === id; }); }
+
+  /* ---------- GitHub sync ---------- */
+  var syncing = false, lastErr = '';
+  function b64enc(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64dec(b) { return decodeURIComponent(escape(atob(b.replace(/\s/g, '')))); }
+  function api(method, body) {
+    return fetch('https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + GH.path + (method === 'GET' ? '?ref=' + GH.branch + '&t=' + Date.now() : ''), {
+      method: method, cache: 'no-store',
+      headers: { 'Authorization': 'Bearer ' + token(), 'Accept': 'application/vnd.github+json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+  }
+  function readRemote() {
+    return api('GET').then(function (r) {
+      if (r.status === 404) return { sha: null, list: [] };
+      if (!r.ok) throw new Error(r.status === 401 ? 'Token rejected (401)' : r.status === 403 ? 'Token has no access (403)' : 'GitHub error ' + r.status);
+      return r.json().then(function (j) { var d = JSON.parse(b64dec(j.content) || '{}'); return { sha: j.sha, list: d.locations || [] }; });
+    });
+  }
+  function setShared(list, fromServer) {
+    var before = JSON.stringify(shared());
+    lsS(K_SHARED, list);
+    if (fromServer) {                           // drop pending items the server already has identically
+      var sh = {}; list.forEach(function (l) { sh[l.id] = JSON.stringify(l); });
+      lsS(KEY, pending().filter(function (l) { return sh[l.id] !== JSON.stringify(l); }));
+      lsS(K_DEL, dels().filter(function (id) { return sh[id]; }));
+    }
+    return before !== JSON.stringify(list);
+  }
+  function sync(tries) {
+    tries = tries || 0;
+    mergeAll(); status();
+    if (!token() || syncing || (!pending().length && !dels().length)) return Promise.resolve();
+    syncing = true; status();
+    return readRemote().then(function (rm) {
+      var list = rm.list.slice(), byId = {}, del = {}, renamed = {};
+      dels().forEach(function (id) { del[id] = 1; });
+      list = list.filter(function (l) { return !del[l.id]; });
+      list.forEach(function (l, i) { byId[l.id] = i; });
+      pending().forEach(function (l) {
+        if (byId[l.id] != null && list[byId[l.id]].created !== l.created) {   // same code made on another phone → renumber mine
+          var old = l.id; l.id = nextId(l.level, list); renamed[old] = l.id;
+        }
+        if (byId[l.id] != null) list[byId[l.id]] = l; else { byId[l.id] = list.length; list.push(l); }
+      });
+      var body = { message: 'Update custom locations (' + list.length + ')', branch: GH.branch,
+        content: b64enc(JSON.stringify({ app: 'joh-rooms', updated: new Date().toISOString(), locations: list }, null, 1)) };
+      if (rm.sha) body.sha = rm.sha;
+      return api('PUT', body).then(function (r) {
+        if (r.status === 409 || r.status === 422) { if (tries < 2) { syncing = false; return sync(tries + 1); } }
+        if (!r.ok) throw new Error('Upload failed (' + r.status + ')');
+        lsS(KEY, []); lsS(K_DEL, []); setShared(list); lastErr = '';
+        syncing = false; mergeAll(); status();
+        var h = location.hash; Object.keys(renamed).forEach(function (o) { if (h.indexOf(encodeURIComponent(o)) >= 0) location.hash = h.replace(encodeURIComponent(o), encodeURIComponent(renamed[o])); });
+        toast('☁ Locations shared with the team');
+      });
+    }).catch(function (x) { syncing = false; lastErr = x.message || 'Sync failed'; status(); });
+  }
+  function fetchShared() {                      // everyone: pull the shared list on open / refresh / return to app
+    var p = token() ? readRemote().then(function (r) { return r.list; })
+      : fetch('data/locations.json', { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('no file'); return r.json(); })
+        .then(function (j) { if (!j || !Array.isArray(j.locations)) throw new Error('offline'); return j.locations; });
+    return p.then(function (list) {
+      var changed = setShared(list, true);
+      if (changed) { mergeAll(); refreshView(); }
+      return sync();
+    }).catch(function () { status(); });
+  }
+  function refreshView() {
+    if (add || document.querySelector('#pvb.adding') || document.querySelector('#loc-dlg.on') || document.querySelector('#sc-modal.on')) return;
+    var h = location.hash;
+    if (/^#\/(plan|room)/.test(h) || h === '' || h === '#/') { var y = window.scrollY; route(); window.scrollTo(0, y); }
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) fetchShared(); });
+  window.addEventListener('online', function () { sync(); });
+  function status() {
+    var el = document.getElementById('loc-sync'); if (!el) return;
+    var n = pending().length + dels().length, t = token();
+    el.className = 'loc-sync' + (lastErr ? ' err' : n ? ' wait' : '');
+    el.innerHTML = syncing ? '⏳ Sharing…' : lastErr ? '⚠ ' + e(lastErr) : n ? (t ? '⏳ ' + n + ' waiting to share' : '📱 ' + n + ' on this phone only') : (t ? '☁ Shared' : '☁ View only');
+  }
+  function toast(m) { var t = document.getElementById('sc-toast'); if (!t) { t = document.createElement('div'); t.id = 'sc-toast'; document.body.appendChild(t); } t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove('on'); }, 2600); }
+
+  function settings() {
+    var has = !!token();
+    dlg('<div class="sc-head"><div><div class="eyebrow" style="color:#d8cdb6">Sharing</div><div class="rn">Team sync</div></div><button class="sc-x" onclick="Locs.closeDlg()">✕</button></div>' +
+      '<div class="sc-body"><div class="small" style="margin-bottom:8px">Everyone with the link sees shared locations when they open or refresh the app. To <b>add, edit or delete</b> locations for the whole team, this phone needs a GitHub token with write access to the <b>' + GH.repo + '</b> repo.</div>' +
+      '<div class="sublab">GitHub token</div><input id="loc-tok" class="loc-in" type="password" autocomplete="off" placeholder="' + (has ? '•••••••• saved on this phone' : 'github_pat_…') + '">' +
+      '<div class="small" style="margin-top:6px">Create it at github.com → Settings → Developer settings → Fine-grained tokens → Repository access: only <b>' + GH.repo + '</b> → Permissions: <b>Contents: Read and write</b>. The token stays on this phone only.</div>' +
+      '<div class="sc-actions"><button class="btn brass sc-big" onclick="Locs.saveToken()">Save &amp; test</button>' + (has ? '<button class="btn ghost loc-del" onclick="Locs.clearToken()">Remove token</button>' : '') + '</div>' +
+      '<div class="small" id="loc-tokmsg"></div></div>');
+  }
+  function saveToken() {
+    var v = ($('loc-tok').value || '').trim(), msg = $('loc-tokmsg');
+    if (!v && !token()) { $('loc-tok').focus(); return; }
+    if (v) try { localStorage.setItem(K_TOKEN, v); } catch (x) {}
+    msg.textContent = 'Testing…';
+    readRemote().then(function (r) {
+      setShared(r.list, true); mergeAll();
+      msg.textContent = '✓ Connected. ' + r.list.length + ' shared location(s).';
+      return sync();
+    }).then(function () { setTimeout(function () { closeDlg(); refreshView(); }, 900); })
+      .catch(function (x) { msg.textContent = '✗ ' + x.message + ' — check the token and its repo permission.'; });
+  }
+  function clearToken() { try { localStorage.removeItem(K_TOKEN); } catch (x) {} closeDlg(); status(); }
   function pad3(n) { return ('00' + n).slice(-3); }
 
   function toRoom(l) {
@@ -32,6 +175,7 @@ var Locs = (function () {
     load().forEach(function (l) { if (!ROOMS_DATA[l.id] || ROOMS_DATA[l.id].custom) ROOMS_DATA[l.id] = toRoom(l); });
   }
   mergeAll();
+  setTimeout(fetchShared, 0);
 
   function nearest(level, x, y) {
     var best = null, bd = Infinity;
@@ -183,21 +327,23 @@ var Locs = (function () {
 
   /* ---------- page pieces used by app.js ---------- */
   function planTools(level) {
+    setTimeout(status, 0);
     var n = load().filter(function (l) { return l.level === level; }).length;
     return '<div class="loc-tools"><button class="btn brass" id="loc-addbtn" onclick="Locs.startAdd(\'' + e(level) + '\')">+ Add Location</button>' +
-      '<button class="btn ghost" onclick="Locs.exportAll()">Export</button><button class="btn ghost" onclick="Locs.importPick()">Import</button>' +
-      '<span class="small">' + (n ? n + ' custom pin(s) on this level' : '') + '</span></div>' +
+      '<button class="btn ghost" onclick="Locs.settings()">⚙ Sync</button><button class="btn ghost" onclick="Locs.exportAll()">Export</button><button class="btn ghost" onclick="Locs.importPick()">Import</button>' +
+      '<span class="loc-sync" id="loc-sync"></span><span class="small">' + (n ? n + ' custom pin(s) on this level' : '') + '</span></div>' +
       '<div id="loc-banner"></div>';
   }
   function roomCard(k, d) {
     if (!d.custom) return '';
     var nr = d.near && ROOMS_DATA[d.near];
-    return '<div class="card loc-card"><div class="eyebrow">Custom location · this phone</div>' +
+    setTimeout(status, 0);
+    return '<div class="card loc-card"><div class="eyebrow">Custom location · ' + (isPending(k) ? (token() ? 'waiting to share' : 'this phone only — set up ⚙ Sync on the Plan tab') : 'shared with the team') + '</div>' +
       (d.desc ? '<div style="margin:4px 0" dir="auto">' + e(d.desc) + '</div>' : '') +
       (nr ? '<div class="small">Nearest room: <span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(d.near) + '\'">' + e(d.near) + ' · ' + e(nr.name || '') + '</span></div>' : '') +
       '<div class="small">Added ' + e((d.created || '').slice(0, 10)) + '</div>' +
       '<button class="btn ghost" onclick="Locs.edit(\'' + e(k) + '\')">Edit / Move / Delete</button></div>';
   }
 
-  return { mergeAll: mergeAll, startAdd: startAdd, startMove: startMove, cancel: cancel, saveNew: saveNew, edit: edit, saveEdit: saveEdit, del: del, move: move, closeDlg: closeDlg, exportAll: exportAll, importPick: importPick, planTools: planTools, roomCard: roomCard, nearest: nearest };
+  return { settings: settings, saveToken: saveToken, clearToken: clearToken, fetchShared: fetchShared, sync: sync, mergeAll: mergeAll, startAdd: startAdd, startMove: startMove, cancel: cancel, saveNew: saveNew, edit: edit, saveEdit: saveEdit, del: del, move: move, closeDlg: closeDlg, exportAll: exportAll, importPick: importPick, planTools: planTools, roomCard: roomCard, nearest: nearest };
 })();
