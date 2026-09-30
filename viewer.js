@@ -16,7 +16,8 @@ var Viewer = (function () {
     container: null, cv: null, ctx: null, mk: null, stat: null,
     renderTimer: null, maxScale: 4,
     markers: [], // browse mode: [{id,mx,my}]
-    onPick: null // browse mode callback(roomId)
+    onPick: null, // browse mode callback(roomId)
+    addFn: null, tmp: null // add-location mode: callback(nx, ny) + temp marker [nx, ny]
   };
   var pdfCache = {};
 
@@ -38,7 +39,7 @@ var Viewer = (function () {
   }
 
   function openBrowse(level, containerId, onPick) {
-    V.mode = 'browse'; V.lvl = level; V.onPick = onPick;
+    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.addFn = null; V.tmp = null;
     var dim = META.dims[level];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -155,6 +156,12 @@ var Viewer = (function () {
       V.mk.style.left = (V.mx * V.viewScale + V.tx) + 'px'; V.mk.style.top = (V.my * V.viewScale + V.ty) + 'px';
     } else if (V.mode === 'browse') {
       drawMarkerDots();
+      var tm = V.container.querySelector('.mk.tmp');
+      if (V.tmp) {
+        if (!tm) { tm = document.createElement('div'); tm.className = 'mk tmp'; V.container.appendChild(tm); }
+        tm.style.display = 'block';
+        tm.style.left = (V.tmp[0] * V.vw * V.viewScale + V.tx) + 'px'; tm.style.top = (V.tmp[1] * V.vh * V.viewScale + V.ty) + 'px';
+      } else if (tm) tm.style.display = 'none';
     }
   }
 
@@ -167,7 +174,7 @@ var Viewer = (function () {
       layer.innerHTML = '';
       V.markers.forEach(function (m) {
         var el = document.createElement('div');
-        el.className = 'mkdot';
+        el.className = 'mkdot' + (ROOMS[m.id] && ROOMS[m.id].custom ? ' custom' : '');
         el.dataset.id = m.id;
         el.title = m.id;
         el.onclick = function (ev) { ev.stopPropagation(); if (V.onPick) V.onPick(m.id); };
@@ -206,6 +213,12 @@ var Viewer = (function () {
     };
     var up = function (e) {
       pts.delete(e.pointerId); lastDist = 0; lastMid = null; scheduleRender();
+      if (V.mode === 'browse' && !moved && V.addFn && downAt && Date.now() - downAt.t < 500) {
+        var ra = pv.getBoundingClientRect();
+        var ax = (downAt.x - ra.left - V.tx) / V.viewScale / V.vw, ay = (downAt.y - ra.top - V.ty) / V.viewScale / V.vh;
+        if (ax >= 0 && ax <= 1 && ay >= 0 && ay <= 1) V.addFn(ax, ay);
+        return;
+      }
       if (V.mode === 'browse' && !moved && V.onPick && downAt && Date.now() - downAt.t < 500) {
         var r = pv.getBoundingClientRect();
         var px = downAt.x - r.left, py = downAt.y - r.top;
@@ -223,5 +236,22 @@ var Viewer = (function () {
     pv.onwheel = function (e) { e.preventDefault(); var r = pv.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, V.viewScale * (e.deltaY < 0 ? 1.15 : 0.87)); };
   }
 
-  return { openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
+  function setAddMode(fn) { V.addFn = fn || null; if (!fn) V.tmp = null; draw(); }
+  function showTemp(nx, ny) { V.tmp = nx == null ? null : [nx, ny]; draw(); }
+  function centerOn(nx, ny, s) {
+    if (!V.container) return;
+    V.viewScale = clampS(s || 2.4);
+    var cw = V.container.clientWidth, ch = V.container.clientHeight;
+    V.tx = cw / 2 - nx * V.vw * V.viewScale; V.ty = ch / 2 - ny * V.vh * V.viewScale;
+    draw(); scheduleRender();
+  }
+
+  function panTo(nx, ny, fy, minScale) {
+    if (!V.container) return;
+    if (minScale && V.viewScale < minScale) V.viewScale = clampS(minScale);
+    var cw = V.container.clientWidth, ch = V.container.clientHeight;
+    V.tx = cw / 2 - nx * V.vw * V.viewScale; V.ty = ch * (fy || 0.5) - ny * V.vh * V.viewScale;
+    draw(); scheduleRender();
+  }
+  return { panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
 })();
