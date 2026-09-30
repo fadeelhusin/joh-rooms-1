@@ -55,7 +55,7 @@ function boot() {
   fa.addEventListener('change', function () { setTab('rooms'); doSearch(); });
 
   document.querySelectorAll('#tabbar button').forEach(function (b) {
-    b.addEventListener('click', function () { location.hash = '#/' + b.dataset.tab; });
+    b.addEventListener('click', function () { var t = b.dataset.tab; location.hash = t === 'plan' ? '#/plan/' + lastLevel() : '#/' + t; });
   });
 
   loadProgress();
@@ -110,25 +110,42 @@ function setTab(t) {
   CUR_TAB = t;
   document.querySelectorAll('#tabbar button').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === t); });
 }
+function lastLevel() {
+  var c = window.Geo && Geo.curLevel();
+  if (c) return c;
+  try { var l = localStorage.getItem('joh_last_level'); if (l && LEVELS.indexOf(l) >= 0) return l; } catch (x) {}
+  return LEVELS.indexOf('00') >= 0 ? '00' : LEVELS[0];
+}
+function showSearch(on) { document.getElementById('searchbar').style.display = on ? '' : 'none'; }
 function route() {
   var h = location.hash.replace(/^#\/?/, '');
   var parts = h.split('/').filter(Boolean).map(decodeURIComponent);
   window.scrollTo(0, 0);
+  showSearch(false);
   if (parts[0] === 'here' && parts[1] && window.Geo) { return Geo.arrive(parts[1], parts[2] || ''); }
-  if (parts[0] === 'room' && parts[1]) { setTab('rooms'); return openRoom(parts[1]); }
-  if (parts[0] === 'plan') {
-    setTab('plan'); openPlanBrowse(parts[1] || LEVELS[0]);
+  if (parts[0] === 'room' && parts[1]) { return openRoom(parts[1], parts[2] === 'ref'); }
+  if (parts[0] === 'plan' || !parts[0]) {
+    var lv = parts[1] || lastLevel();
+    setTab('plan'); openPlanBrowse(lv);
+    try { localStorage.setItem('joh_last_level', lv); } catch (x) {}
     if (window.Locs && parts[2] === 'add') Locs.startAdd(parts[1], parts[3] || '');
     if (window.Locs && parts[2] === 'move' && parts[3]) Locs.startMove(parts[3]);
+    if (window.Geo && parts[2] === 'calibrate') Geo.calibrate(parts[1]);
     return;
   }
-  if (parts[0] === 'lookahead' && window.Site) { setTab('lookahead'); q.style.display = 'none'; fl.style.display = 'none'; fa.style.display = 'none'; return Site.lookahead(parts[1]); }
-  if (parts[0] === 'materials' && !parts[1]) { setTab('materials'); return renderMaterialsHome(); }
-  if (parts[0] === 'material' && parts[1]) { setTab('materials'); return openMaterial(parts[1]); }
-  setTab('rooms'); renderHome();
+  if (parts[0] === 'site') { setTab('site'); return renderSiteHome(); }
+  if (parts[0] === 'settings') { setTab(''); return renderSettings(); }
+  if (parts[0] === 'lookahead' && window.Site) { setTab('lookahead'); return Site.lookahead(parts[1]); }
+  if (parts[0] === 'materials' && !parts[1]) { setTab('library'); return renderMaterialsHome(); }
+  if (parts[0] === 'material' && parts[1]) { setTab('library'); return openMaterial(parts[1]); }
+  setTab('library'); renderHome();
+}
+function libSwitch(active) {
+  return '<div class="seg"><button class="' + (active === 'rooms' ? 'on' : '') + '" onclick="location.hash=\'#/library\'">🏛️ Rooms</button><button class="' + (active === 'materials' ? 'on' : '') + '" onclick="location.hash=\'#/materials\'">🧱 Materials</button></div>';
 }
 
 function renderHome() {
+  showSearch(true);
   q.style.display = ''; fl.style.display = ''; fa.style.display = '';
   doSearch();
 }
@@ -152,13 +169,11 @@ function doSearch() {
 }
 function renderList(keys, t, L, A) {
   if (!t && !L && !A) {
-    app.innerHTML = '<div class="eyebrow" style="padding:8px 2px 0">Jeddah Opera House</div>' +
-      '<div class="hint" style="font-size:13px;color:var(--ink-soft)">Search a room number (e.g. <b>5.04.TEC.01</b>) or name, filter by level / type, or browse a floor plan to tap a room. ' + Object.keys(ROOMS).length + ' rooms indexed across ' + LEVELS.length + ' levels.</div>' +
-      '<div class="card" style="display:flex;gap:10px;align-items:center;cursor:pointer" onclick="location.hash=\'#/plan\'"><div style="font-size:26px">🗺️</div><div><div style="font-weight:700;font-family:var(--serif)">Browse the plan</div><div class="small">Tap any room on the floor plan to open its storyboard</div></div></div>' +
-      '<div class="card" style="display:flex;gap:10px;align-items:center;cursor:pointer" onclick="location.hash=\'#/materials\'"><div style="font-size:26px">🧱</div><div><div style="font-weight:700;font-family:var(--serif)">Material library</div><div class="small">' + MATERIALS.length + ' finishes, furniture & fixtures with codes, specs & photos</div></div></div>';
+    app.innerHTML = libSwitch('rooms') + '<div class="eyebrow" style="padding:8px 2px 0">Jeddah Opera House</div>' +
+      '<div class="hint" style="font-size:13px;color:var(--ink-soft)">Search a room number (e.g. <b>5.04.TEC.01</b>) or name, filter by level / type, or browse a floor plan to tap a room. ' + Object.keys(ROOMS).length + ' rooms indexed across ' + LEVELS.length + ' levels.</div>';
     return;
   }
-  var h = '<div class="hint">' + keys.length + ' result(s)</div>';
+  var h = libSwitch('rooms') + '<div class="hint">' + keys.length + ' result(s)</div>';
   keys.slice(0, 150).forEach(function (k) {
     var d = ROOMS[k];
     h += '<div class="card roomrow" style="padding:12px 14px" onclick="location.hash=\'#/room/' + encodeURIComponent(k) + '\'"><span class="rn">' + esc(k) + '</span><span class="rt">' + esc(d.name || '') + '</span><span class="meta">L' + esc(d.baseLevel) + (d.area ? (' · ' + d.area + 'm²') : '') + '</span></div>';
@@ -166,45 +181,100 @@ function renderList(keys, t, L, A) {
   app.innerHTML = h || '<div class="emptystate"><div class="big">🔍</div>No match.</div>';
 }
 
-/* ---------- ROOM STORYBOARD ---------- */
-function openRoom(k) {
+/* ---------- ROOM PAGE: Status | Reference ---------- */
+function markHere(k) {
+  try {
+    localStorage.setItem('joh_cur_room', JSON.stringify({ id: k, t: Date.now() }));
+    var r = JSON.parse(localStorage.getItem('joh_recent') || '[]').filter(function (x) { return x !== k; });
+    r.unshift(k); localStorage.setItem('joh_recent', JSON.stringify(r.slice(0, 8)));
+  } catch (x) {}
+}
+function curRoom() { try { var v = JSON.parse(localStorage.getItem('joh_cur_room') || 'null'); return v && Date.now() - v.t < 4 * 3600e3 && ROOMS[v.id] ? v.id : null; } catch (x) { return null; } }
+function openRoom(k, ref) {
   var d = ROOMS[k]; if (!d) { app.innerHTML = '<div class="emptystate">Room not found.</div>'; return; }
-  var st = d.study || ['', ''];
-  var h = '<button class="btn ghost" onclick="history.length>1?history.back():location.hash=\'#/\'">← Back</button>';
-  h += '<button class="btn brass" onclick="printRoom(\'' + k + '\')">Export storyboard PDF</button>';
-  h += '<button class="btn brass sc-big sc-sitebtn" onclick="SiteCam.open(\'' + k + '\')">📷 Site Photo</button>';
-
-  /* hero */
-  h += '<div class="hero" data-curroom="' + esc(k) + '">';
+  try { var r = JSON.parse(localStorage.getItem('joh_recent') || '[]').filter(function (x) { return x !== k; }); r.unshift(k); localStorage.setItem('joh_recent', JSON.stringify(r.slice(0, 8))); } catch (x) {}
+  var st = d.study || ['', ''], g = window.Grid && Grid.ofRoom(k);
+  var h = '<div class="rtop"><button class="btn ghost" onclick="history.length>1?history.back():location.hash=\'#/plan/' + esc(d.baseLevel) + '\'">←</button>' +
+    '<div class="rhead"><div class="rn">' + esc(k) + '</div><div class="rt">' + esc(d.name || '') + '</div>' +
+    '<div class="small">Level ' + esc(d.baseLevel) + (g ? ' · Grid ' + esc(g.text) : '') + (d.area ? ' · ' + d.area + ' m²' : '') + (d.custom ? ' · 📍 custom' : '') + '</div></div></div>';
+  h += '<div class="seg"><button class="' + (ref ? '' : 'on') + '" onclick="location.replace(\'#/room/' + encodeURIComponent(k) + '\')">✅ Status</button><button class="' + (ref ? 'on' : '') + '" onclick="location.replace(\'#/room/' + encodeURIComponent(k) + '/ref\')">📘 Reference</button></div>';
+  /* location plan (both tabs) */
+  h += '<div class="hero small-hero" data-curroom="' + esc(k) + '">';
   if (d.pos) {
     h += '<div class="frame" id="pv"><canvas></canvas><div class="mk"></div>' +
       '<div id="pvlvl">LEVEL ' + esc(d.baseLevel) + '</div><div class="pvstat-el" id="pvstat">loading…</div>' +
       '<div id="pvctl"><button onclick="Viewer.zoomBy(1.4)">+</button><button onclick="Viewer.zoomBy(0.72)">−</button><button onclick="Viewer.centerRoom()">◎</button></div></div>';
+  } else h += '<div class="frame" style="display:flex;align-items:center;justify-content:center;color:#eee;font-size:12.5px;padding:20px;text-align:center">Location not yet mapped on the L' + esc(d.baseLevel) + ' plan.</div>';
+  h += '</div>';
+  if (!ref) {
+    h += '<div class="sc-actions"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + esc(k) + '\')">📷 Site Photo</button></div>';
+    if (window.Locs && d.custom) h += Locs.roomCard(k, d);
+    if (window.Site) h += Site.roomSection(k);
   } else {
-    h += '<div class="frame" style="display:flex;align-items:center;justify-content:center;color:#eee;font-size:12.5px;padding:20px;text-align:center">Location not yet mapped on the L' + esc(d.baseLevel) + ' plan — open the full drawing below.</div>';
+    h += '<table class="kv card" style="margin-top:2px"><tbody>' +
+      row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Grid', g ? g.text : null) + row2('Zone', d.zone) +
+      row2('Nett area', d.area ? (d.area + ' m²') : null) + row2('Function (schedule)', d.function) +
+      row2('Abbreviation usage', st[0]) + row2('OPE function', st[1]) + '</tbody></table>';
+    h += '<h2 class="sec">Finishing Schedule</h2>' + renderFinishing(k, d);
+    h += '<h2 class="sec">Material Mockup Samples</h2>' + renderMaterialMockups(k, d);
+    h += '<h2 class="sec">FF&amp;E List</h2>' + renderFFE(k, d);
+    h += '<h2 class="sec">Reference Documents</h2>' + renderRoomDocs(k, d);
+    h += '<button class="btn ghost" onclick="printRoom(\'' + k + '\')">🖨 Export storyboard PDF</button>';
   }
-  h += '<div class="caption"><div class="rn">' + esc(k) + '</div><div class="rt">' + esc(d.name || '') + '</div>' +
-    '<div class="tags"><span class="tag">Level ' + esc(d.baseLevel) + '</span>' + (d.custom ? '<span class="tag">📍 Custom location</span>' : '') + (window.Grid && Grid.ofRoom(k) ? '<span class="tag">Grid ' + esc(Grid.ofRoom(k).text) + '</span>' : '') + '<span class="tag">Zone ' + esc(d.zone || '–') + '</span>' +
-    (d.area ? '<span class="tag">' + d.area + ' m²</span>' : '') + '<span class="tag">' + esc(d.abbr) + '</span></div></div></div>';
-  if (window.Site) h += Site.roomSection(k);
-  if (d.pos) h += '<div class="small" style="margin:-6px 0 8px">Drag to pan · pinch / +− to zoom · ◎ re-centre. Source: ' + esc(d.dwg || '') + '.</div>';
-
-  if (window.Locs && d.custom) h += Locs.roomCard(k, d);
-  h += '<button class="btn ghost" onclick="location.hash=\'#/plan/' + esc(d.baseLevel) + '/add/' + encodeURIComponent(d.custom ? (d.near || '') : k) + '\'">📍 Add location near here</button>';
-  h += '<table class="kv card" style="margin-top:2px"><tbody>' +
-    row2('Room name', d.name) + row2('Level', 'Level ' + esc(d.level)) + row2('Grid', (window.Grid && Grid.ofRoom(k) ? Grid.ofRoom(k).text : null)) + row2('Zone', d.zone) +
-    row2('Nett area', d.area ? (d.area + ' m²') : null) + row2('Function (schedule)', d.function) +
-    row2('Abbreviation usage', st[0]) + row2('OPE function', st[1]) + '</tbody></table>';
-
-  h += '<h2 class="sec">Finishing Schedule</h2>' + renderFinishing(k, d);
-  h += '<h2 class="sec">Material Mockup Samples</h2>' + renderMaterialMockups(k, d);
-  h += '<h2 class="sec">FF&amp;E List</h2>' + renderFFE(k, d);
-  h += '<h2 class="sec">Room Delivery Clearance Checklist</h2>' + renderClearances(k, d);
-  h += '<h2 class="sec">Reference Documents</h2>' + renderRoomDocs(k, d);
-
   app.innerHTML = h;
   if (d.pos) Viewer.openRoom(k, 'pv');
-  updateCnt(k); showProgress(k);
+  if (ref) { updateCnt(k); showProgress(k); }
+}
+
+/* ---------- SITE HOME ---------- */
+function renderSiteHome() {
+  var cr = curRoom(), lv = (window.Geo && Geo.curLevel()) || (cr ? ROOMS[cr].baseLevel : null), h = '';
+  h += '<div class="card here"><div class="eyebrow">Where you are</div>' +
+    '<div class="here-lv">' + (lv ? 'Level ' + esc(lv) : 'Level not set') + (cr ? ' · <b>' + esc(cr) + '</b>' : '') + '</div>' +
+    '<div class="sc-actions"><button class="btn brass" onclick="Geo.scan()">▦ Scan QR</button><button class="btn ghost" onclick="Geo.whereAmI(\'' + esc(lv || lastLevel()) + '\')">📍 Where am I</button>' +
+    '<button class="btn ghost" onclick="Geo.qrMenu(\'' + esc(lv || lastLevel()) + '\')">Set level</button></div></div>';
+  if (cr) {
+    var d = ROOMS[cr], g = window.Grid && Grid.ofRoom(cr);
+    h += '<div class="card here-room"><div class="eyebrow">Current room</div><div class="rn">' + esc(cr) + '</div><div class="rt">' + esc(d.name || '') + '</div>' +
+      '<div class="small">Level ' + esc(d.baseLevel) + (g ? ' · Grid ' + esc(g.text) : '') + '</div>' + (window.Site ? Site.sheetLine(cr) : '') +
+      '<div class="sc-actions"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + esc(cr) + '\')">📷 Photo</button><button class="btn ghost" onclick="location.hash=\'#/room/' + encodeURIComponent(cr) + '\'">✅ Update status</button>' +
+      '<button class="btn ghost" onclick="location.hash=\'#/plan/' + esc(d.baseLevel) + '\'">🗺️</button></div></div>';
+  } else {
+    h += '<div class="card small">Scan the room door QR, or take a photo / update a room — it shows here with what to check.</div>';
+  }
+  h += '<div class="gotorow"><input id="goto" class="loc-in" placeholder="Go to room no. (e.g. 4.00.SUP.03)" autocomplete="off"></div><div id="gotolist"></div>';
+  if (window.Site) {
+    var L = lv || lastLevel(), c = { ready: 0, wip: 0, blocked: 0, none: 0, handed: 0 };
+    Object.keys(ROOMS).forEach(function (k) { if (ROOMS[k].baseLevel === L && !ROOMS[k].custom) { var i = Site.roomInfo(k); if (i) c[i.status]++; } });
+    var np = Site.proposals().length;
+    h += '<div class="card" onclick="location.hash=\'#/lookahead/' + esc(L) + '\'" style="cursor:pointer"><div class="eyebrow">Level ' + esc(L) + ' today</div><div class="la-kpi">' +
+      '<div class="k ready"><b>' + c.ready + '</b>ready</div><div class="k wip"><b>' + c.wip + '</b>in progress</div><div class="k blocked"><b>' + c.blocked + '</b>blocked</div><div class="k handed"><b>' + c.handed + '</b>handed</div><div class="k none"><b>' + c.none + '</b>to survey</div></div>' +
+      (np ? '<div class="site-prop">🤖 ' + np + ' proposed update(s) to review</div>' : '') + '<div class="small"><span class="site-sync loc-sync"></span></div></div>';
+  }
+  app.innerHTML = h;
+  var gi = document.getElementById('goto');
+  gi.addEventListener('input', function () {
+    var t = gi.value.trim().toUpperCase(), out = [];
+    if (t.length >= 2) Object.keys(ROOMS).some(function (k) { if ((k + ' ' + (ROOMS[k].name || '')).toUpperCase().indexOf(t) >= 0) out.push(k); return out.length >= 8; });
+    document.getElementById('gotolist').innerHTML = out.map(function (k) { return '<span class="roomchip" onclick="location.hash=\'#/room/' + encodeURIComponent(k) + '\'">' + esc(k) + ' · ' + esc(ROOMS[k].name || '') + '</span>'; }).join('');
+  });
+}
+
+/* ---------- SETTINGS ---------- */
+function renderSettings() {
+  var L = lastLevel(), u = ''; try { u = localStorage.getItem('joh_user') || ''; } catch (x) {}
+  var h = '<div class="eyebrow" style="padding:4px 2px 0">Settings · set up once</div>';
+  h += '<div class="card"><div class="sublab">Team sync</div><div class="small">Shares locations, site status and GPS calibration with everyone who has the link.</div>' +
+    '<div class="set-stat"><span class="loc-sync" id="loc-sync"></span> <span class="site-sync loc-sync"></span> <span class="loc-sync" id="geo-stat"></span></div>' +
+    '<button class="btn brass" onclick="Locs.settings()">🔑 GitHub token & backup</button></div>';
+  h += '<div class="card"><div class="sublab">Your initials</div><div class="small">Shown next to your site updates.</div>' +
+    '<input id="set-user" class="loc-in" value="' + esc(u) + '" placeholder="e.g. FH" maxlength="8"><button class="btn ghost" onclick="try{localStorage.setItem(\'joh_user\',document.getElementById(\'set-user\').value.trim())}catch(x){};Locs.toast(\'Saved\')">Save</button></div>';
+  h += '<div class="card"><div class="sublab">GPS calibration</div><div class="small">Links GPS to the plans. Do it once outside the building at 3–4 known spots.</div><div class="levelpicker">' +
+    LEVELS.map(function (l) { return '<button onclick="location.hash=\'#/plan/' + l + '/calibrate\'">🎯 L' + l + '</button>'; }).join('') + '</div></div>';
+  h += '<div class="card"><div class="sublab">QR labels</div><div class="small">Print lobby QR (sets the level) and door labels (open the room).</div><div class="levelpicker">' +
+    LEVELS.map(function (l) { return '<button onclick="Geo.qrMenu(\'' + l + '\')">▦ L' + l + '</button>'; }).join('') + '</div></div>';
+  h += '<div class="card small">JOH Site · Jeddah Opera House (S4-01-056) · Rev F00 IFC 31-01-2024 · works offline once loaded.</div>';
+  app.innerHTML = h;
 }
 
 function finBlock(w) {
@@ -266,7 +336,6 @@ function renderFinishing(k, d) {
     f.mep.forEach(function (m, i) { h += tickBox(k, 'mep' + i, m, 'Pre-finishing check'); });
     h += '</div></details>';
   }
-  h += '<details data-sect data-id="prg"><summary>Daily Progress<span class="cnt"></span></summary><div class="body"><div id="prog-upd" class="small"></div><div id="prog-body"></div></div></details>';
   return h;
 }
 
@@ -329,17 +398,19 @@ function renderRoomDocs(k, d) {
 /* ---------- PLAN BROWSE (tap-to-search) ---------- */
 function openPlanBrowse(level) {
   if (LEVELS.indexOf(level) < 0) level = LEVELS[0];
-  var h = '<div class="eyebrow" style="padding:4px 2px 0">Tap a room pin → Site Photo or open the room</div>';
+  var h = '';
   h += '<div class="levelpicker">';
   LEVELS.forEach(function (l) { h += '<button class="' + (l === level ? 'active' : '') + '" onclick="location.hash=\'#/plan/' + l + '\'">Level ' + l + '</button>'; });
   h += '</div>';
-  var LT = window.Locs ? Locs.planTools(level) : {}, GT = window.Geo ? Geo.planTools(level) : {};
-  h += '<div class="tbar">' + (LT.btn || '') + (GT.btn || '') + (LT.btnEnd || '') + '</div>' +
-    '<div class="tstat">' + (GT.chip || '') + (LT.stat || '') + (GT.stat || '') + '</div>' +
-    '<div class="pin-legend"><i class="st-ready"></i>open <i class="st-wip"></i>in progress <i class="st-blocked"></i>blocked <i class="st-handed"></i>handed <i></i>not surveyed</div><div id="loc-banner"></div>';
+  h += '<div class="pin-legend"><i class="st-ready"></i>open <i class="st-wip"></i>in progress <i class="st-blocked"></i>blocked <i class="st-handed"></i>handed <i></i>not surveyed</div><div id="loc-banner"></div>';
   h += '<div class="planwrap" id="pvb"><canvas></canvas><div class="dotlayer" style="position:absolute;inset:0;pointer-events:none"></div>' +
     '<div id="pvlvl">LEVEL ' + esc(level) + '</div><div class="pvstat-el" id="pvstat"></div></div>';
-  h += '<div class="small" style="margin-top:8px">Drag to pan · pinch / scroll to zoom · tap a gold pin to take a Site Photo or open the room.</div>';
+  h += '<div class="fab-wrap" id="fabw"><div class="fab-menu">' +
+    '<button onclick="Fab.go(function(){Locs.startAdd(\'' + esc(level) + '\')})">➕ Add location</button>' +
+    '<button onclick="Fab.go(function(){Geo.whereAmI(\'' + esc(level) + '\')})">📍 Where am I</button>' +
+    '<button onclick="Fab.go(function(){Geo.findPhoto(\'' + esc(level) + '\')})">🔎 Find a photo</button>' +
+    '<button onclick="Fab.go(function(){Geo.scan()})">▦ Scan QR</button></div>' +
+    '<button class="fab" onclick="document.getElementById(\'fabw\').classList.toggle(\'open\')">＋</button></div>';
   app.innerHTML = h;
   document.querySelectorAll('#pvb .mkdot').forEach(function () {}); // no-op, dots injected by viewer
   document.querySelector('#pvb .dotlayer').style.pointerEvents = 'auto';
@@ -359,7 +430,7 @@ var matFilterCat = '', matFilterText = '';
 function renderMaterialsHome() {
   q.style.display = 'none'; fl.style.display = 'none'; fa.style.display = 'none';
   var cats = getMatCats();
-  var h = '<div class="eyebrow" style="padding:8px 2px 0">Material &amp; FF&amp;E Library</div>';
+  var h = libSwitch('materials') + '<div class="eyebrow" style="padding:8px 2px 0">Material &amp; FF&amp;E Library</div>';
   h += '<div class="hint" style="font-size:13px;color:var(--ink-soft)">' + MATERIALS.length + ' coded materials, furniture &amp; fixtures from the approved schedules — search by code, product name or keyword.</div>';
   h += '<input id="mq" type="search" placeholder="Search code, product or keyword…" style="width:100%;padding:11px 12px;border:1px solid var(--line-strong);border-radius:6px;font-size:16px;margin:6px 0 10px;background:var(--card)" value="' + esc(matFilterText) + '">';
   h += '<div class="levelpicker">';
@@ -484,3 +555,5 @@ function printRoom(k) {
   document.getElementById('doc').innerHTML = h;
   setTimeout(function () { window.print(); }, 400);
 }
+
+var Fab = { go: function (fn) { var w = document.getElementById('fabw'); if (w) w.classList.remove('open'); fn(); } };

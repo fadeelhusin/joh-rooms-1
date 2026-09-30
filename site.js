@@ -75,7 +75,9 @@ var Site = (function () {
   function add(ev) {
     ev.id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     ev.t = ev.t || new Date().toISOString(); ev.by = ev.by || user();
-    var a = pend(); a.push(ev); lsS(K_P, a); STATE = null; sync(); return ev;
+    var a = pend(); a.push(ev); lsS(K_P, a); STATE = null; sync();
+    if (window.markHere && ev.room && ROOMS[ev.room] && !ev.p) markHere(ev.room);
+    return ev;
   }
   function fetchShared() {
     var p = tok() ? Locs.gh.read(PATH).then(function (r) { return r.data; })
@@ -162,7 +164,7 @@ var Site = (function () {
       h += '<div class="sublab" style="color:var(--red)">⛔ Open blockers</div>';
       i.blk.forEach(function (b) { h += '<div class="site-bl"><div><b>' + e(b.type) + '</b>' + (b.stage ? ' · ' + e(b.stage) : '') + '<div class="small" dir="auto">' + e(b.text || '') + ' — ' + e(b.by) + ' ' + e(b.t.slice(0, 10)) + '</div></div><button class="btn ghost" onclick="Site.resolve(\'' + e(id) + '\',\'' + b.id + '\')">Resolve</button></div>'; });
     }
-    h += '<div class="small" style="margin:4px 0 6px">Tap a stage: ▶ started · ✅ done (walk-down marks everything before it too).</div>';
+
     i.tp.st.forEach(function (s) {
       var st = i.r.st[s.id], ready = !st && s.after.every(i.done);
       var ic = st ? (st.v === 'done' ? '✅' : '▶') : ready ? '🟢' : '·';
@@ -212,10 +214,11 @@ var Site = (function () {
   /* ---------- sheet line under a plan pin ---------- */
   function sheetLine(id) {
     var i = roomInfo(id); if (!i) return '';
+    if (i.status === 'none') return '<div class="site-line">Not surveyed yet</div>';
     var t = i.blk.length ? '⛔ ' + i.blk.length + ' blocker(s)' : '';
     var nx = i.inprog.length ? '▶ ' + i.inprog.map(function (s) { return s.id; }).join(', ') : '';
     var op = i.next.length ? '🟢 open: ' + i.next.map(function (s) { return s.id + ' ' + s.name; }).slice(0, 2).join(' · ') : '';
-    return '<div class="site-line">' + [t, nx, op].filter(Boolean).map(e).join('  ') + (i.status === 'none' ? 'No site status yet — walk-down needed' : i.status === 'handed' ? '✅ Handed over' : '') + '</div>';
+    return '<div class="site-line">' + [t, nx, op].filter(Boolean).map(e).join('  ') + (i.status === 'handed' ? '✅ Handed over' : '') + '</div>';
   }
 
   /* ---------- LOOK-AHEAD page ---------- */

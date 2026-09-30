@@ -14,8 +14,7 @@
 </head>
 <body>
 <header>
-  <div class="brand"><h1>JOH Room Storyboard</h1></div>
-  <div class="sub">Jeddah Opera House (S4-01-056) · Rev F00 IFC 31-01-2024 · offline</div>
+  <div class="brand"><h1>JOH Site</h1><button id="gear" class="gear" onclick="location.hash='#/settings'" aria-label="Settings">⚙</button></div>
   <div id="searchbar">
     <input id="q" type="search" placeholder="Room no. or name…" autocomplete="off">
     <select id="fl"><option value="">Level</option></select>
@@ -26,10 +25,10 @@
 <div id="doc"></div>
 
 <nav id="tabbar">
-  <button data-tab="rooms" class="active"><span class="ic">🏛️</span>Rooms</button>
-  <button data-tab="plan"><span class="ic">🗺️</span>Plan</button>
+  <button data-tab="site"><span class="ic">📍</span>Site</button>
+  <button data-tab="plan" class="active"><span class="ic">🗺️</span>Plan</button>
   <button data-tab="lookahead"><span class="ic">📅</span>Look-ahead</button>
-  <button data-tab="materials"><span class="ic">🧱</span>Materials</button>
+  <button data-tab="library"><span class="ic">📚</span>Library</button>
 </nav>
 
 <script>

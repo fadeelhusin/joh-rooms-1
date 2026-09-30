@@ -143,6 +143,7 @@ var Geo = (function () {
   function setLevel(l) { lsS(K_LVL, { level: l, t: Date.now() }); }
   function arrive(level, room) {
     if (LEVELS.indexOf(level) >= 0) setLevel(level);
+    if (room && ROOMS[room] && window.markHere) markHere(room);
     toast('📍 You are on Level ' + level);
     location.replace(room && ROOMS[room] ? '#/room/' + encodeURIComponent(room) : '#/plan/' + level);
   }

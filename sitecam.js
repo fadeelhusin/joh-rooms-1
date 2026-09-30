@@ -25,7 +25,7 @@ var SiteCam = (function () {
       '<button class="sc-x" aria-label="Close" onclick="SiteCam.closeSheet()">✕</button></div>' +
       '<div class="sc-sh-btns"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + e(id) + '\')">📷 Site Photo</button>' +
       '<button class="btn ghost" onclick="SiteCam.closeSheet();location.hash=\'#/room/' + encodeURIComponent(id) + '\'">' + (d.custom ? 'Open location' : 'Open room') + '</button></div>' +
-      (window.Locs ? '<button class="btn ghost sc-addnear" onclick="SiteCam.closeSheet();Locs.startAdd(\'' + e(d.baseLevel) + '\',\'' + e(d.custom ? (d.near || '') : id) + '\')">📍 Add a new location near here</button>' : '');
+'';
     sh.classList.add('on');
     document.querySelectorAll('.mkdot').forEach(function (m) { m.classList.toggle('active', m.dataset.id === id); });
   }
@@ -59,14 +59,14 @@ var SiteCam = (function () {
         '<select id="sc-lang"><option value="ar-SA"' + (lang === 'ar-SA' ? ' selected' : '') + '>Arabic</option><option value="en-US"' + (lang === 'en-US' ? ' selected' : '') + '>English</option></select>'
         : '') +
       '<span class="small" id="sc-vstat">' + (SR ? '' : 'Tip: tap the 🎤 on your keyboard to dictate into the note.') + '</span></div>' +
-      '<div class="small" id="sc-gps">📍 Getting location…</div>' +
+      '<div class="small" id="sc-gps"></div>' +
       '<div class="small" id="sc-gps2"></div>' +
       '<div class="sc-actions"><button class="btn brass sc-big" onclick="$sc(\'sc-f-cam\').click()">📷 Take Photo</button>' +
       '<button class="btn ghost" onclick="$sc(\'sc-f-lib\').click()">🖼️ From Gallery</button></div>' +
       '<input type="file" id="sc-f-cam" accept="image/*" capture="environment" hidden>' +
       '<input type="file" id="sc-f-lib" accept="image/*" hidden>' +
       '<div id="sc-prev"></div>' +
-      '<div class="small" id="sc-count" style="margin-top:10px">' + (n ? n + ' site photo(s) saved for this room on this phone.' : '') + '</div>' +
+      '<div id="sc-count"></div>' +
       '</div></div>';
     m.classList.add('on');
     document.body.style.overflow = 'hidden';
@@ -89,7 +89,7 @@ var SiteCam = (function () {
     if (!navigator.geolocation) { S.geo = null; if (el) el.textContent = '📍 Location not available on this device.'; return; }
     navigator.geolocation.getCurrentPosition(function (p) {
       S.geo = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy };
-      var g = $('sc-gps'); if (g) g.textContent = '📍 ' + fmtGeo(S.geo) + ' (±' + Math.round(S.geo.acc) + ' m)';
+      var g = $('sc-gps'); if (g) g.textContent = '';
       restamp();
     }, function () {
       S.geo = null; var g = $('sc-gps'); if (g) g.textContent = '📍 Location off — photo will be stamped without GPS.';
@@ -310,7 +310,7 @@ var SiteCam = (function () {
     a.push({ n: S.name, t: Date.now(), note: (($('sc-note') || {}).value || '').slice(0, 200) }); lsSet(k, a.slice(-300));
     if (window.Geo) Geo.fromPhoto(S.room, S.srcGeo ? null : S.geo);
     if (window.Site) { var sg = $('sc-stg'), sv = $('sc-stv'); Site.photoEvent(S.room, sg && sg.value, sv && sv.value, S.name); }
-    var c = $('sc-count'); if (c) c.textContent = a.length + ' site photo(s) saved for this room on this phone.';
+    if (window.markHere) markHere(S.room);
   }
   function download() {
     if (!S.blob) return;
