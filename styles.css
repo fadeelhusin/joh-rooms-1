@@ -252,6 +252,8 @@ details>.body{padding:12px 15px}
 #sc-mic.rec{background:var(--red);color:#fff;border-color:var(--red);animation:pulse 1.5s infinite}
 .sc-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 8px}
 .sc-actions .sc-big{flex:1 1 180px}
+.sc-wa{background:#1f8f4e;color:#fff;border:0;flex:1 1 100%!important}
+.sc-wa:active{background:#17703c}
 .sc-img{display:block;width:100%;border-radius:6px;border:1px solid var(--line-strong);background:#1f1a14}
 #sc-toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;z-index:90;background:#2a241d;color:#f3ead9;padding:9px 14px;border-radius:6px;font-size:13px;transition:all .2s;pointer-events:none;max-width:90vw;text-align:center}
 #sc-toast.on{opacity:1;transform:translate(-50%,0)}

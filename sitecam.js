@@ -274,18 +274,19 @@ var SiteCam = (function () {
       var canShare = false;
       try { canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], S.name, { type: 'image/jpeg' })] })); } catch (x) {}
       var saveBtn, altBtn, hint;
+      var waBtn = canShare ? '<button class="btn sc-big sc-wa" onclick="SiteCam.whatsapp()">💬 Send on WhatsApp</button>' : '';
       if (IS_IOS && canShare) {
-        saveBtn = '<button class="btn brass sc-big" onclick="SiteCam.share()">💾 Save to Photos</button>';
+        saveBtn = '<button class="btn ' + (waBtn ? 'ghost' : 'brass sc-big') + '" id="sc-save" onclick="SiteCam.share()">💾 Save to Photos</button>';
         altBtn = '<button class="btn ghost" onclick="SiteCam.download()">⬇ Save as file</button>';
-        hint = 'In the share sheet tap <b>Save Image</b> — it goes straight to your Photos.';
+        hint = (waBtn ? '<b>Send on WhatsApp</b>: pick the chat — only the photo and your note are sent. Then tap <b>Save to Photos</b> → <b>Save Image</b> to keep a copy. ' : '') + 'In the share sheet tap <b>Save Image</b> — it goes straight to your Photos.';
       } else {
-        saveBtn = '<button class="btn brass sc-big" onclick="SiteCam.download()">💾 Save to Gallery</button>';
+        saveBtn = '<button class="btn ' + (waBtn ? 'ghost' : 'brass sc-big') + '" onclick="SiteCam.download()">💾 Save to Gallery</button>';
         altBtn = canShare ? '<button class="btn ghost" onclick="SiteCam.share()">📤 Share</button>' : '';
-        hint = 'Saved to <b>Downloads</b> — it shows in your Gallery / Google Photos under the Downloads album.';
+        hint = (waBtn ? '<b>Send on WhatsApp</b> saves a copy to your Gallery and opens WhatsApp — pick the chat; only the photo and your note are sent. ' : '') + 'Copies go to <b>Downloads</b> — they show in your Gallery / Google Photos under the Downloads album.';
       }
       var g2 = $('sc-gps2'); if (g2) g2.textContent = S.srcGeo ? '📷 Using the GPS saved in the photo itself.' : '';
       host.innerHTML = '<div class="sublab">Preview</div><img class="sc-img" src="' + URL.createObjectURL(blob) + '" alt="Stamped photo">' +
-        '<div class="sc-actions">' + saveBtn + altBtn + '<button class="btn ghost" onclick="$sc(\'sc-f-cam\').click()">📷 Retake</button></div>' +
+        '<div class="sc-actions">' + waBtn + saveBtn + altBtn + '<button class="btn ghost" onclick="$sc(\'sc-f-cam\').click()">📷 Retake</button></div>' +
         '<div class="small">' + hint + ' Edit the note above and the stamp updates.</div>';
       if (scrollTo) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
@@ -325,13 +326,44 @@ var SiteCam = (function () {
     navigator.share({ files: [file], title: S.room }).then(function () { log(); toast('Done'); })
       .catch(function (x) { if (x && x.name !== 'AbortError') download(); });
   }
+  /* ---------- send to a WhatsApp chat: photo + note only (no link) ---------- */
+  function caption() {
+    var d = ROOMS[S.room] || {}, GR = window.Grid && Grid.ofRoom(S.room);
+    var note = (($('sc-note') || {}).value || '').trim();
+    var STG = $('sc-stg') && $('sc-stg').value, SL = STG && window.Site && Site.photoLabel(S.room, STG);
+    var head = '*' + S.room + '*' + (d.name ? ' — ' + d.name : '');
+    var meta = 'Level ' + d.baseLevel + (GR ? ' · Grid ' + GR.text : '');
+    return [head, meta, SL ? SL + ((($('sc-stv') || {}).checked) ? ' — DONE' : '') : '', note].filter(Boolean).join('\n');
+  }
+  function whatsapp() {
+    if (!S.blob) return;
+    var file = new File([S.blob], S.name, { type: 'image/jpeg' }), text = caption();
+    try { if (navigator.clipboard) navigator.clipboard.writeText(text).catch(function () {}); } catch (x) {}
+    if (!IS_IOS) {                                 // Android: keep a copy in the gallery straight away
+      var a = document.createElement('a'); a.href = URL.createObjectURL(S.blob); a.download = S.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    }
+    var data = { files: [file], text: text };
+    try { if (navigator.canShare && !navigator.canShare(data)) data = { files: [file] }; } catch (x) {}
+    navigator.share(data).then(function () {
+      log();
+      if (IS_IOS) {
+        toast('Sent — now tap Save to Photos to keep a copy');
+        var b = $('sc-save'); if (b) { b.classList.remove('ghost'); b.classList.add('brass', 'sc-big'); b.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      } else toast('Sent · copy saved to Gallery');
+    }).catch(function (x) {
+      if (x && x.name === 'AbortError') { if (!IS_IOS) { log(); toast('Not sent · copy saved to Gallery'); } return; }
+      download();
+    });
+  }
   function toast(msg) {
     var t = $('sc-toast'); if (!t) { t = document.createElement('div'); t.id = 'sc-toast'; document.body.appendChild(t); }
     t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove('on'); }, 2600);
   }
 
   window.$sc = $;
-  return { pick: pick, open: open, close: close, closeSheet: closeSheet, mic: mic, download: download, share: share, _compose: compose, _S: S };
+  return { pick: pick, open: open, close: close, closeSheet: closeSheet, mic: mic, download: download, share: share, whatsapp: whatsapp, _compose: compose, _S: S };
 })();
 
 /* ============================================================
