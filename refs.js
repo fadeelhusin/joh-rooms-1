@@ -75,25 +75,51 @@ var Refs = (function () {
       if (!left && document.hasFocus()) { var s = document.getElementById('dwg-pc'); if (s) s.classList.add('warn'); }
     }, 2500);
   }
-  function open(id) {
-    var r = LIST.filter(function (x) { return x.id === id; })[0]; if (!r) return;
-    if (IS_WIN) return openPC(id, LVL);
-    cached(r).then(function (res) {
+  /* Why the old way failed: the file was read from storage first and only then handed to the share
+     sheet / a download — by then the phone no longer counted it as "your tap", so iOS refused the share
+     and Android saved a blob with no usable file type, so no "open with" list appeared.
+     Now:
+     • Android — the button is a real link to the .dwg (served from the offline copy by the app's
+       service worker with the proper DWG type), so Chrome's download → "Open" shows the DWG apps.
+     • iPhone — first tap gets the file ready, second tap opens the share sheet right away
+       (AutoCAD / ZWCAD / Files are listed there because the file is a real .dwg). */
+  var READY = {}, MIME = 'image/vnd.dwg';
+  function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+  function fname(r) { return r.file.split('/').pop(); }
+  function getBlob(r) {
+    return cached(r).then(function (res) {
       if (res) return res.blob();
       if (!navigator.onLine) throw new Error('Not saved on this phone yet — connect once and tap Save offline.');
-      toast('Downloading ' + r.name + '…');
       return download(r, true).then(function () { return cached(r); }).then(function (x) { if (!x) throw new Error('Download failed'); return x.blob(); });
-    }).then(function (blob) {
-      var name = r.file.split('/').pop(), file = new File([blob], name, { type: 'application/acad' });
-      var canShare = false; try { canShare = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (x) {}
-      if (canShare) return navigator.share({ files: [file], title: r.name }).catch(function (x) { if (x && x.name !== 'AbortError') save(blob, name); });
-      save(blob, name);
-    }).catch(function (x) { alert(x.message || 'Could not open the drawing.'); });
+    });
   }
-  function save(blob, name) {
-    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
-    toast('Saved to Downloads — tap it and choose AutoCAD');
+  function open(id, ev) {
+    var r = byId(id); if (!r) return;
+    if (IS_WIN) { if (ev) ev.preventDefault(); return openPC(id, LVL); }
+    if (!isIOS()) {                                        // Android & others: let the real link download it
+      if (!navigator.onLine) cached(r).then(function (h) { if (!h) alert('Not saved on this phone yet — connect once and tap Save offline.'); });
+      toast('Opening… tap “Open” on the download message');
+      return;                                              // default link action continues
+    }
+    if (ev) ev.preventDefault();
+    var f = READY[id];
+    if (f) {                                               // 2nd tap: still inside the tap → share sheet opens
+      navigator.share({ files: [f] }).then(function () { delete READY[id]; paintBtn(r); })
+        .catch(function (x) { if (x && x.name === 'AbortError') return; location.href = r.file; });
+      return;
+    }
+    var b = $('dwg-o-' + id); if (b) { b.textContent = 'Preparing…'; b.classList.add('busy'); }
+    getBlob(r).then(function (blob) {
+      var file = new File([blob], fname(r), { type: MIME });
+      var ok = false; try { ok = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (x) {}
+      if (!ok) { location.href = r.file; return; }
+      READY[id] = file; paintBtn(r);
+    }).catch(function (x) { paintBtn(r); alert(x.message || 'Could not open the drawing.'); });
+  }
+  function paintBtn(r) {
+    var b = $('dwg-o-' + r.id); if (!b) return;
+    b.classList.remove('busy'); b.classList.toggle('go', !!READY[r.id]);
+    b.textContent = READY[r.id] ? '▶ Tap to choose AutoCAD' : 'Open in AutoCAD';
   }
 
   /* keep them current: check on open; auto-download on Wi-Fi */
@@ -120,12 +146,12 @@ var Refs = (function () {
     var h = IS_WIN
       ? '<div class="card dwg-help small" id="dwg-pc"><b>Open in AutoCAD</b> opens the drawing straight in AutoCAD (or ZWCAD)' + (level ? ' on the <b>Level ' + e(level) + '</b> layout' : '') + ', from the copy kept on this PC — works offline.' +
         '<div class="dwg-setup">First time on this PC? <a href="pc/JOH-CAD-Setup.cmd" download>⬇ Download PC setup</a>, run it once (no admin needed). When the browser asks, tick <i>Always allow</i>.</div></div>'
-      : '<div class="card dwg-help small">' + (IOS ? 'Tap <b>Open in AutoCAD</b> → choose <b>AutoCAD</b> in the share list.' : 'Tap <b>Open in AutoCAD</b> → tap <b>Open</b> on the download message (set AutoCAD as default for .dwg once).') +
+      : '<div class="card dwg-help small">' + (IOS ? 'Tap <b>Open in AutoCAD</b>, then tap it again → pick <b>AutoCAD</b> or <b>ZWCAD</b> in the share list (scroll the app row or tap <i>More</i> the first time).' : 'Tap <b>Open in AutoCAD</b> → tap <b>Open</b> on the download message → choose <b>AutoCAD</b> or <b>ZWCAD</b> → <i>Always</i>.') +
         (level ? ' Then pick the <b>Level ' + e(level) + '</b> layout.' : '') + '</div>';
     LIST.forEach(function (r) {
       h += '<div class="card dwg" id="dwg-' + r.id + '"><div class="dwg-top"><div class="dwg-ic">DWG</div><div class="dwg-t"><b>' + e(r.name) + '</b><div class="small">' + e(r.note) + ' · ' + mb(r.size) + '</div>' +
         '<div class="small dwg-s" id="dwg-s-' + r.id + '"></div><div class="dwg-bar"><i id="dwg-p-' + r.id + '"></i></div></div></div>' +
-        '<div class="dwg-acts"><button class="btn brass" onclick="Refs.open(\'' + r.id + '\')">Open in AutoCAD</button><span id="dwg-b-' + r.id + '"></span></div></div>';
+        '<div class="dwg-acts"><a class="btn brass" id="dwg-o-' + r.id + '" href="' + e(r.file) + '" download="' + e(fname(r)) + '" onclick="Refs.open(\'' + r.id + '\',event)">Open in AutoCAD</a><span id="dwg-b-' + r.id + '"></span></div></div>';
     });
     h += '<div class="sc-actions"><button class="btn ghost" onclick="Refs.all()">⬇ Save all offline</button><span class="small" id="dwg-quota"></span></div>';
     return h;

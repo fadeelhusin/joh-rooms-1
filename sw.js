@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v13';
+const CACHE = 'joh-storyboard-v14';
 const DWG_CACHE = 'joh-dwg-v1';
 const ASSETS = [
   "./",
@@ -458,7 +458,12 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   if (url.pathname.endsWith('.dwg')) {           // drawings: whatever is saved offline, else network
-    e.respondWith(caches.open(DWG_CACHE).then(c => c.match(url.href)).then(h => h || fetch(e.request)));
+    const name = decodeURIComponent(url.pathname.split('/').pop());
+    const asDwg = r => r.blob().then(b => new Response(b, { headers: {
+      'Content-Type': 'image/vnd.dwg', 'Content-Length': String(b.size),
+      'Content-Disposition': 'attachment; filename="' + name + '"' } }));
+    e.respondWith(caches.open(DWG_CACHE).then(c => c.match(url.origin + url.pathname))
+      .then(h => h ? asDwg(h) : fetch(e.request).then(r => r.ok ? asDwg(r) : r)));
     return;
   }
   const isApp = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('sw.js');

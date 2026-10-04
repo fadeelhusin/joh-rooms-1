@@ -415,3 +415,4 @@ details.fin-s .body{padding:4px 12px 10px}
 .dwg-setup{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);display:none}
 #dwg-pc.warn .dwg-setup{display:block;color:var(--red)}
 #dwg-pc .dwg-setup{display:block}
+.btn.go{background:#2f7d6d}.btn.busy{opacity:.7}a.btn{text-decoration:none}
