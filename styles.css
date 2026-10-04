@@ -412,3 +412,6 @@ details.fin-s .body{padding:4px 12px 10px}
 .dwg-bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
 .dwg-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.dwg-acts .btn{margin:0}
 .dwg-help{border-left:4px solid var(--brass)}
+.dwg-setup{margin-top:6px;padding-top:6px;border-top:1px dashed var(--line);display:none}
+#dwg-pc.warn .dwg-setup{display:block;color:var(--red)}
+#dwg-pc .dwg-setup{display:block}

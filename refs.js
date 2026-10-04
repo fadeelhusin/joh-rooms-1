@@ -18,7 +18,7 @@ var Refs = (function () {
     { id: 'ceilings', name: 'Ceiling plans', file: 'refs/JOH_Ceilings.dwg', note: 'Reflected ceiling plans', size: 72228590 },
     { id: 'floors', name: 'Floor plans', file: 'refs/JOH_Floors.dwg', note: 'Floor finishes', size: 51869827 }
   ];
-  var busy = {};
+  var busy = {}, IS_WIN = /Windows/.test(navigator.userAgent), LVL = '';
   function $(id) { return document.getElementById(id); }
   function e(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function mb(n) { return (n / 1048576).toFixed(0) + ' MB'; }
@@ -63,8 +63,21 @@ var Refs = (function () {
   function progress(r, f) { var el = $('dwg-p-' + r.id); if (el) el.style.width = Math.round(f * 100) + '%'; var t = $('dwg-s-' + r.id); if (t) t.textContent = 'Downloading… ' + Math.round(f * 100) + '%'; }
 
   /* open: hand the file to AutoCAD (share sheet) or save to Downloads */
+  /* Windows PC: the johcad:// link (installed once by pc/JOH-CAD-Setup.cmd) opens the drawing
+     straight in AutoCAD / ZWCAD on the level's layout, from C:\JOH-CAD\drawings (offline). */
+  function openPC(id, level) {
+    var t = Date.now(), left = false;
+    var onBlur = function () { left = true; };
+    window.addEventListener('blur', onBlur);
+    location.href = 'johcad://open/' + id + (level ? '/' + level : '');
+    setTimeout(function () {
+      window.removeEventListener('blur', onBlur);
+      if (!left && document.hasFocus()) { var s = document.getElementById('dwg-pc'); if (s) s.classList.add('warn'); }
+    }, 2500);
+  }
   function open(id) {
     var r = LIST.filter(function (x) { return x.id === id; })[0]; if (!r) return;
+    if (IS_WIN) return openPC(id, LVL);
     cached(r).then(function (res) {
       if (res) return res.blob();
       if (!navigator.onLine) throw new Error('Not saved on this phone yet — connect once and tap Save offline.');
@@ -101,9 +114,14 @@ var Refs = (function () {
 
   /* ---------- UI ---------- */
   function section(level) {
+    LVL = level || '';
     setTimeout(paint, 0); setTimeout(check, 500);
-    var h = '<div class="card dwg-help small">Tap <b>Open in AutoCAD</b> and pick AutoCAD in the share list (or open the saved file from Downloads). ' +
-      (level ? 'Then switch to the <b>Level ' + e(level) + '</b> layout / view.' : 'Then switch to the layout of the level you need.') + '</div>';
+    var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var h = IS_WIN
+      ? '<div class="card dwg-help small" id="dwg-pc"><b>Open in AutoCAD</b> opens the drawing straight in AutoCAD (or ZWCAD)' + (level ? ' on the <b>Level ' + e(level) + '</b> layout' : '') + ', from the copy kept on this PC — works offline.' +
+        '<div class="dwg-setup">First time on this PC? <a href="pc/JOH-CAD-Setup.cmd" download>⬇ Download PC setup</a>, run it once (no admin needed). When the browser asks, tick <i>Always allow</i>.</div></div>'
+      : '<div class="card dwg-help small">' + (IOS ? 'Tap <b>Open in AutoCAD</b> → choose <b>AutoCAD</b> in the share list.' : 'Tap <b>Open in AutoCAD</b> → tap <b>Open</b> on the download message (set AutoCAD as default for .dwg once).') +
+        (level ? ' Then pick the <b>Level ' + e(level) + '</b> layout.' : '') + '</div>';
     LIST.forEach(function (r) {
       h += '<div class="card dwg" id="dwg-' + r.id + '"><div class="dwg-top"><div class="dwg-ic">DWG</div><div class="dwg-t"><b>' + e(r.name) + '</b><div class="small">' + e(r.note) + ' · ' + mb(r.size) + '</div>' +
         '<div class="small dwg-s" id="dwg-s-' + r.id + '"></div><div class="dwg-bar"><i id="dwg-p-' + r.id + '"></i></div></div></div>' +
