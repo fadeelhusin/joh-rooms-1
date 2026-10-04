@@ -416,3 +416,4 @@ details.fin-s .body{padding:4px 12px 10px}
 #dwg-pc.warn .dwg-setup{display:block;color:var(--red)}
 #dwg-pc .dwg-setup{display:block}
 .btn.go{background:#2f7d6d}.btn.busy{opacity:.7}a.btn{text-decoration:none}
+.dwg-steps{margin:6px 0 0 18px;padding:0}.dwg-steps li{margin:3px 0}

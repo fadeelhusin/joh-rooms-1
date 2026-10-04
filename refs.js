@@ -83,7 +83,7 @@ var Refs = (function () {
        service worker with the proper DWG type), so Chrome's download → "Open" shows the DWG apps.
      • iPhone — first tap gets the file ready, second tap opens the share sheet right away
        (AutoCAD / ZWCAD / Files are listed there because the file is a real .dwg). */
-  var READY = {}, MIME = 'image/vnd.dwg';
+  var READY = {}, MIME = 'image/vnd.dwg', MIME_IOS = 'application/octet-stream';   // iOS: no image/* type so the share sheet treats it as a .dwg document, not a picture
   function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
   function fname(r) { return r.file.split('/').pop(); }
   function getBlob(r) {
@@ -110,7 +110,7 @@ var Refs = (function () {
     }
     var b = $('dwg-o-' + id); if (b) { b.textContent = 'Preparing…'; b.classList.add('busy'); }
     getBlob(r).then(function (blob) {
-      var file = new File([blob], fname(r), { type: MIME });
+      var file = new File([blob], fname(r), { type: MIME_IOS });
       var ok = false; try { ok = !!(navigator.canShare && navigator.canShare({ files: [file] })); } catch (x) {}
       if (!ok) { location.href = r.file; return; }
       READY[id] = file; paintBtn(r);
@@ -119,7 +119,7 @@ var Refs = (function () {
   function paintBtn(r) {
     var b = $('dwg-o-' + r.id); if (!b) return;
     b.classList.remove('busy'); b.classList.toggle('go', !!READY[r.id]);
-    b.textContent = READY[r.id] ? '▶ Tap to choose AutoCAD' : 'Open in AutoCAD';
+    b.textContent = READY[r.id] ? '▶ Tap again — Save to Files / AutoCAD' : (isIOS() ? 'Save for AutoCAD' : 'Open in AutoCAD');
   }
 
   /* keep them current: check on open; auto-download on Wi-Fi */
@@ -146,12 +146,14 @@ var Refs = (function () {
     var h = IS_WIN
       ? '<div class="card dwg-help small" id="dwg-pc"><b>Open in AutoCAD</b> opens the drawing straight in AutoCAD (or ZWCAD)' + (level ? ' on the <b>Level ' + e(level) + '</b> layout' : '') + ', from the copy kept on this PC — works offline.' +
         '<div class="dwg-setup">First time on this PC? <a href="pc/JOH-CAD-Setup.cmd" download>⬇ Download PC setup</a>, run it once (no admin needed). When the browser asks, tick <i>Always allow</i>.</div></div>'
-      : '<div class="card dwg-help small">' + (IOS ? 'Tap <b>Open in AutoCAD</b>, then tap it again → pick <b>AutoCAD</b> or <b>ZWCAD</b> in the share list (scroll the app row or tap <i>More</i> the first time).' : 'Tap <b>Open in AutoCAD</b> → tap <b>Open</b> on the download message → choose <b>AutoCAD</b> or <b>ZWCAD</b> → <i>Always</i>.') +
+      : '<div class="card dwg-help small">' + (IOS ? '<b>iPhone:</b> Safari can\'t hand a file straight to AutoCAD, so keep the drawings in Files once and open them from AutoCAD:' +
+          '<ol class="dwg-steps"><li>Tap <b>Save for AutoCAD</b>, then tap it again.</li><li>In the share sheet choose <b>Save to Files</b> → <b>On My iPhone</b> → folder <b>JOH Drawings</b> (create it the first time). If AutoCAD / ZWCAD shows in the app row, you can pick it directly.</li>' +
+          '<li>Open <b>AutoCAD</b> (or ZWCAD) → <b>Files</b> / <b>Open</b> → <b>On My iPhone › JOH Drawings</b>. They stay there offline; only re-save when the app says <i>update available</i>.</li></ol>' : 'Tap <b>Open in AutoCAD</b> → tap <b>Open</b> on the download message → choose <b>AutoCAD</b> or <b>ZWCAD</b> → <i>Always</i>.') +
         (level ? ' Then pick the <b>Level ' + e(level) + '</b> layout.' : '') + '</div>';
     LIST.forEach(function (r) {
       h += '<div class="card dwg" id="dwg-' + r.id + '"><div class="dwg-top"><div class="dwg-ic">DWG</div><div class="dwg-t"><b>' + e(r.name) + '</b><div class="small">' + e(r.note) + ' · ' + mb(r.size) + '</div>' +
         '<div class="small dwg-s" id="dwg-s-' + r.id + '"></div><div class="dwg-bar"><i id="dwg-p-' + r.id + '"></i></div></div></div>' +
-        '<div class="dwg-acts"><a class="btn brass" id="dwg-o-' + r.id + '" href="' + e(r.file) + '" download="' + e(fname(r)) + '" onclick="Refs.open(\'' + r.id + '\',event)">Open in AutoCAD</a><span id="dwg-b-' + r.id + '"></span></div></div>';
+        '<div class="dwg-acts"><a class="btn brass" id="dwg-o-' + r.id + '" href="' + e(r.file) + '" download="' + e(fname(r)) + '" onclick="Refs.open(\'' + r.id + '\',event)">' + (isIOS() ? 'Save for AutoCAD' : 'Open in AutoCAD') + '</a><span id="dwg-b-' + r.id + '"></span></div></div>';
     });
     h += '<div class="sc-actions"><button class="btn ghost" onclick="Refs.all()">⬇ Save all offline</button><span class="small" id="dwg-quota"></span></div>';
     return h;
