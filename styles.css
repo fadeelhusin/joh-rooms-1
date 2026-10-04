@@ -417,3 +417,18 @@ details.fin-s .body{padding:4px 12px 10px}
 #dwg-pc .dwg-setup{display:block}
 .btn.go{background:#2f7d6d}.btn.busy{opacity:.7}a.btn{text-decoration:none}
 .dwg-steps{margin:6px 0 0 18px;padding:0}.dwg-steps li{margin:3px 0}
+
+/* ---------- HD drawings ---------- */
+.hd-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.hd-chip{display:inline-block;padding:7px 12px;border-radius:16px;font-size:13px;font-weight:600;text-decoration:none;color:#fff;background:#5b6470}
+.hd-chip.overall{background:linear-gradient(90deg,#2f6db5,#3f9a54,#c0392b)}
+.hd-chip.walls{background:#7f551f}.hd-chip.ceilings{background:#2c3b4a}.hd-chip.floors{background:#4c6b52}
+.hd-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 8px}
+.hd-inline .hd-chips{margin:0}
+.hd-row{padding:8px 0;border-bottom:1px solid var(--line)}
+.hd-lv{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.hd-lv a{padding:5px 9px;border:1px solid var(--line-strong);border-radius:12px;font-size:12.5px;text-decoration:none;color:var(--ink);background:var(--card)}
+.hd-seg button{font-size:12.5px;padding:8px 4px}
+.hd-wrap{height:calc(100vh - 230px);min-height:340px}
+.hd-wrap #pvctl{position:absolute;right:8px;bottom:8px;display:flex;gap:6px;z-index:5}
+.hd-wrap #pvctl button{width:40px;height:40px;border-radius:8px;border:0;background:rgba(255,255,255,.92);font-size:20px;box-shadow:0 1px 4px rgba(0,0,0,.25)}

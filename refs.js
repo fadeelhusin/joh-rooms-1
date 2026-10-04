@@ -185,3 +185,60 @@ var Refs = (function () {
   return { LIST: LIST, section: section, open: open, dl: function (id) { download(byId(id)); }, rm: function (id) { remove(byId(id)); },
     all: function () { LIST.reduce(function (p, r) { return p.then(function () { return cached(r).then(function (h) { return h && !upd[r.id] ? null : download(r, true); }); }); }, Promise.resolve()).then(function () { toast('✓ All drawings saved offline'); }); } };
 })();
+
+/* ============================================================
+   HD DRAWINGS — vector PDFs plotted from the AutoCAD files
+   (plans-hd/<set>-<level>.pdf), shown inside the app on every
+   device, offline, opening on the room when one is given.
+   ============================================================ */
+var HD = (function () {
+  var CACHE = 'joh-hd-v1';
+  var SETS = [
+    { id: 'overall', name: 'Scope (coloured)', short: 'Scope', levels: ['00', '01', '02', '03', '04', '05', '06'] },
+    { id: 'walls', name: 'Wall plans', short: 'Walls', levels: ['B2', 'B1', '00', '01', '02', '03', '04', '05', '06'] },
+    { id: 'ceilings', name: 'Ceiling plans', short: 'Ceilings', levels: ['B2', 'B1', '00', '01', '02', '03', '04', '05', '06'] },
+    { id: 'floors', name: 'Floor plans', short: 'Floors', levels: ['B2', 'B1', '00', '01', '02', '03', '04', '05', '06'] }
+  ];
+  function e(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function file(set, lv) { return 'plans-hd/' + set + '-' + lv + '.pdf'; }
+  function setOf(id) { return SETS.filter(function (x) { return x.id === id; })[0]; }
+  function chips(level, room) {
+    return '<div class="hd-chips">' + SETS.map(function (s) {
+      var ok = s.levels.indexOf(level) >= 0;
+      return ok ? '<a class="hd-chip ' + s.id + '" href="#/hd/' + s.id + '/' + level + (room ? '/' + encodeURIComponent(room) : '') + '">' + e(s.short) + '</a>' : '';
+    }).join('') + '</div>';
+  }
+  function page(set, level, room) {
+    var S = setOf(set) || SETS[0]; if (S.levels.indexOf(level) < 0) level = S.levels.indexOf('00') >= 0 ? '00' : S.levels[0];
+    var tail = room ? '/' + encodeURIComponent(room) : '';
+    var h = '<div class="seg hd-seg">' + SETS.map(function (s) { return '<button class="' + (s.id === S.id ? 'on' : '') + '" onclick="location.replace(\'#/hd/' + s.id + '/' + level + tail + '\')">' + e(s.short) + '</button>'; }).join('') + '</div>';
+    h += '<div class="levelpicker">' + S.levels.map(function (l) { return '<button class="' + (l === level ? 'active' : '') + '" onclick="location.replace(\'#/hd/' + S.id + '/' + l + tail + '\')">L' + l + '</button>'; }).join('') + '</div>';
+    h += '<div class="planwrap hd-wrap" id="hdv"><canvas></canvas><div class="mk"></div><div id="pvlvl">' + e(S.short.toUpperCase()) + ' · L' + e(level) + '</div><div class="pvstat-el" id="pvstat"></div>' +
+      '<div id="pvctl"><button onclick="Viewer.zoomBy(1.5)">+</button><button onclick="Viewer.zoomBy(0.67)">−</button><button onclick="Viewer.fitPlan()">⤢</button></div></div>';
+    h += '<div class="small" id="hd-note">' + (room ? 'Looking for <b>' + e(room) + '</b>…' : 'Pinch to zoom — the drawing stays sharp.') + '</div>';
+    document.getElementById('app').innerHTML = h;
+    Viewer.openDoc(file(S.id, level), 'hdv', room || null, function (found) {
+      var n = document.getElementById('hd-note'); if (!n) return;
+      if (found === null) n.innerHTML = '⚠ This drawing isn\'t saved on this phone yet — open it once online, or tap <b>Save all HD drawings offline</b> in Library › Drawings.';
+      else if (room) n.innerHTML = found ? '📍 <b>' + e(room) + '</b> marked in red.' : e(room) + ' is not labelled on this sheet — showing the whole level.';
+    });
+  }
+  function section(level, room) {
+    var h = '<div class="card hd-card"><div class="eyebrow">HD drawings — open here, any phone, offline</div>';
+    if (level) h += '<div class="small">Level ' + e(level) + (room ? ' · opens on ' + e(room) : '') + '</div>' + chips(level, room);
+    else h += SETS.map(function (s) { return '<div class="hd-row"><b>' + e(s.name) + '</b><div class="hd-lv">' + s.levels.map(function (l) { return '<a href="#/hd/' + s.id + '/' + l + '">L' + l + '</a>'; }).join('') + '</div></div>'; }).join('');
+    h += '<div class="sc-actions"><button class="btn ghost" onclick="HD.saveAll(this)">⬇ Save all HD drawings offline (~70 MB)</button></div></div>';
+    return h;
+  }
+  function saveAll(btn) {
+    if (!('caches' in window)) return;
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+    var list = []; SETS.forEach(function (s) { s.levels.forEach(function (l) { list.push(file(s.id, l)); }); });
+    var n = 0; btn.disabled = true;
+    caches.open(CACHE).then(function (c) {
+      return list.reduce(function (p, f) { return p.then(function () { return c.match(new URL(f, location.href).href).then(function (h) { return h || c.add(f); }).then(function () { n++; btn.textContent = 'Saving… ' + n + '/' + list.length; }); }); }, Promise.resolve());
+    }).then(function () { btn.textContent = '✓ All HD drawings saved offline'; })
+      .catch(function () { btn.disabled = false; btn.textContent = 'Retry — connection dropped'; });
+  }
+  return { SETS: SETS, page: page, section: section, chips: chips, saveAll: saveAll };
+})();

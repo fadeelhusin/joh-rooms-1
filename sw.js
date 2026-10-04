@@ -1,5 +1,6 @@
-const CACHE = 'joh-storyboard-v15';
+const CACHE = 'joh-storyboard-v16';
 const DWG_CACHE = 'joh-dwg-v1';
+const HD_CACHE = 'joh-hd-v1';
 const ASSETS = [
   "./",
   "./index.html",
@@ -451,12 +452,16 @@ self.addEventListener('install', e => {
   );
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== DWG_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== DWG_CACHE && k !== HD_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
+  if (url.pathname.indexOf('/plans-hd/') >= 0) {     // HD drawings: offline copy first, keep a copy when fetched
+    e.respondWith(caches.open(HD_CACHE).then(c => c.match(url.origin + url.pathname).then(h => h || fetch(e.request).then(r => { if (r && r.ok) c.put(url.origin + url.pathname, r.clone()); return r; }))));
+    return;
+  }
   if (url.pathname.endsWith('.dwg')) {           // drawings: whatever is saved offline, else network
     const name = decodeURIComponent(url.pathname.split('/').pop());
     const asDwg = r => r.blob().then(b => new Response(b, { headers: {

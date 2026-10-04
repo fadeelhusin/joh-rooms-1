@@ -25,7 +25,7 @@ var Viewer = (function () {
 
   function openRoom(k, containerId) {
     var d = ROOMS[k]; if (!d || !d.pos) return;
-    V.mode = 'room'; V.room = k; V.lvl = d.baseLevel; V.tile = null;
+    V.mode = 'room'; V.room = k; V.lvl = d.baseLevel; V.tile = null; V.src = null; V.pdfPage = null; V.pdfCanvas = null; V.pdfScale = 0;
     var dim = META.dims[V.lvl];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -39,7 +39,7 @@ var Viewer = (function () {
   }
 
   function openBrowse(level, containerId, onPick) {
-    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.tile = null; V.addFn = null; V.tmp = null; V.tmpR = 0;
+    V.mode = 'browse'; V.lvl = level; V.onPick = onPick; V.tile = null; V.src = null; V.pdfPage = null; V.pdfCanvas = null; V.pdfScale = 0; V.addFn = null; V.tmp = null; V.tmpR = 0;
     var dim = META.dims[level];
     V.dpr = window.devicePixelRatio || 1;
     V.vw = 1191; V.vh = 842;
@@ -76,7 +76,7 @@ var Viewer = (function () {
 
   function loadPdf() {
     if (!window.pdfjsLib) { setStat('plan image'); return; }
-    var src = 'plans/' + V.lvl + '.pdf';
+    var src = V.src || ('plans/' + V.lvl + '.pdf');
     setStat('loading plan…');
     var lvl = V.lvl;
     var done = function (page) { if (lvl !== V.lvl) return; V.pdfPage = page; renderPdf(needScale(), function () {}); };
@@ -103,7 +103,7 @@ var Viewer = (function () {
     }).catch(function () { setStat('plan image'); if (cb) cb(); });
   }
 
-  function clampS(s) { return Math.max(0.12, Math.min(V.maxScale * 1.6, s)); }
+  function clampS(s) { return Math.max(V.mode === 'doc' ? 0.02 : 0.12, Math.min(V.mode === 'doc' ? 8 : V.maxScale * 1.6, s)); }
   function centerAt(s) {
     V.viewScale = clampS(s);
     var cw = V.container.clientWidth, ch = V.container.clientHeight;
@@ -177,7 +177,7 @@ var Viewer = (function () {
         ctx.setTransform(V.dpr, 0, 0, V.dpr, 0, 0);
       }
     }
-    if (V.mode === 'room' && V.mk) {
+    if ((V.mode === 'room' || (V.mode === 'doc' && V.mx != null)) && V.mk) {
       V.mk.style.display = 'block';
       V.mk.style.left = (V.mx * V.viewScale + V.tx) + 'px'; V.mk.style.top = (V.my * V.viewScale + V.ty) + 'px';
     } else if (V.mode === 'browse') {
@@ -287,5 +287,34 @@ var Viewer = (function () {
     V.tx = cw / 2 - nx * V.vw * V.viewScale; V.ty = ch * (fy || 0.5) - ny * V.vh * V.viewScale;
     draw(); scheduleRender();
   }
-  return { level: level, panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
+  /* ---------- doc mode: any vector PDF (HD AutoCAD plots), optional room to find & mark ---------- */
+  function openDoc(src, containerId, roomId, onStat) {
+    V.mode = 'doc'; V.src = src; V.lvl = 'doc:' + src; V.room = roomId || null; V.mx = null; V.my = null;
+    V.tile = null; V.png = null; V.pdfPage = null; V.pdfCanvas = null; V.pdfScale = 0;
+    V.dpr = window.devicePixelRatio || 1;
+    setupCanvas(containerId);
+    if (V.mk) V.mk.style.display = 'none';
+    bind();
+    setStat('loading drawing…');
+    var key = V.lvl;
+    pdfjsLib.getDocument(src).promise.then(function (pdf) { return pdf.getPage(1); }).then(function (page) {
+      if (key !== V.lvl) return;
+      var vp = page.getViewport({ scale: 1 });
+      V.vw = vp.width; V.vh = vp.height; V.pdfPage = page;
+      V.maxScale = Math.min(Math.sqrt(14.0e6 / (V.vw * V.vh)), 4000 / V.vw, 4000 / V.vh);
+      fitPlan();
+      renderPdf(needScale(), function () { renderTile(); });
+      if (!roomId) { if (onStat) onStat(true); return; }
+      page.getTextContent().then(function (tc) {
+        var hit = null;
+        tc.items.forEach(function (it) { if (!hit && it.str && it.str.trim() === roomId) hit = it; });
+        if (!hit) { if (onStat) onStat(false); return; }
+        var pt = vp.convertToViewportPoint(hit.transform[4], hit.transform[5]);
+        V.mx = pt[0]; V.my = pt[1] - 4; centerAt(Math.max(1.2, V.viewScale * 6));
+        if (onStat) onStat(true);
+      });
+    }).catch(function () { setStat('drawing not available offline'); if (onStat) onStat(null); });
+  }
+
+  return { openDoc: openDoc, level: level, panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
 })();

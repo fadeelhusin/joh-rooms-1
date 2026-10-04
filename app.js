@@ -136,7 +136,8 @@ function route() {
   if (parts[0] === 'site') { setTab('site'); return renderSiteHome(); }
   if (parts[0] === 'settings') { setTab(''); return renderSettings(); }
   if (parts[0] === 'lookahead' && window.Site) { setTab('lookahead'); return Site.lookahead(parts[1]); }
-  if (parts[0] === 'drawings' && window.Refs) { setTab('library'); app.innerHTML = libSwitch('drawings') + Refs.section(parts[1] || ''); return; }
+  if (parts[0] === 'hd' && window.HD) { setTab('library'); return HD.page(parts[1], parts[2] || lastLevel(), parts[3] || ''); }
+  if (parts[0] === 'drawings' && window.Refs) { setTab('library'); app.innerHTML = libSwitch('drawings') + HD.section('') + '<h2 class="sec">AutoCAD files (.dwg)</h2>' + Refs.section(parts[1] || ''); return; }
   if (parts[0] === 'materials' && !parts[1]) { setTab('library'); return renderMaterialsHome(); }
   if (parts[0] === 'material' && parts[1]) { setTab('library'); return openMaterial(parts[1]); }
   setTab('library'); renderHome();
@@ -209,6 +210,7 @@ function openRoom(k, ref) {
   h += '</div>';
   if (!ref) {
     h += '<div class="sc-actions"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + esc(k) + '\')">📷 Site Photo</button></div>';
+    if (window.HD) h += '<div class="hd-inline"><span class="small">📐 Drawings:</span>' + HD.chips(d.baseLevel, d.custom ? '' : k) + '</div>';
     if (window.Locs && d.custom) h += Locs.roomCard(k, d);
     if (window.Site) h += Site.roomSection(k);
   } else {
@@ -220,7 +222,8 @@ function openRoom(k, ref) {
     h += '<h2 class="sec">Material Mockup Samples</h2>' + renderMaterialMockups(k, d);
     h += '<h2 class="sec">FF&amp;E List</h2>' + renderFFE(k, d);
     h += '<h2 class="sec">Reference Documents</h2>' + renderRoomDocs(k, d);
-    if (window.Refs) h += '<h2 class="sec">AutoCAD drawings</h2>' + Refs.section(d.baseLevel);
+    if (window.HD) h += '<h2 class="sec">Drawings</h2>' + HD.section(d.baseLevel, d.custom ? '' : k);
+    if (window.Refs) h += '<h2 class="sec">AutoCAD files (.dwg)</h2>' + Refs.section(d.baseLevel);
     h += '<button class="btn ghost" onclick="printRoom(\'' + k + '\')">🖨 Export storyboard PDF</button>';
   }
   app.innerHTML = h;
