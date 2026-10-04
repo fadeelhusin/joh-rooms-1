@@ -136,12 +136,13 @@ function route() {
   if (parts[0] === 'site') { setTab('site'); return renderSiteHome(); }
   if (parts[0] === 'settings') { setTab(''); return renderSettings(); }
   if (parts[0] === 'lookahead' && window.Site) { setTab('lookahead'); return Site.lookahead(parts[1]); }
+  if (parts[0] === 'drawings' && window.Refs) { setTab('library'); app.innerHTML = libSwitch('drawings') + Refs.section(parts[1] || ''); return; }
   if (parts[0] === 'materials' && !parts[1]) { setTab('library'); return renderMaterialsHome(); }
   if (parts[0] === 'material' && parts[1]) { setTab('library'); return openMaterial(parts[1]); }
   setTab('library'); renderHome();
 }
 function libSwitch(active) {
-  return '<div class="seg"><button class="' + (active === 'rooms' ? 'on' : '') + '" onclick="location.hash=\'#/library\'">🏛️ Rooms</button><button class="' + (active === 'materials' ? 'on' : '') + '" onclick="location.hash=\'#/materials\'">🧱 Materials</button></div>';
+  return '<div class="seg"><button class="' + (active === 'rooms' ? 'on' : '') + '" onclick="location.hash=\'#/library\'">🏛️ Rooms</button><button class="' + (active === 'materials' ? 'on' : '') + '" onclick="location.hash=\'#/materials\'">🧱 Materials</button><button class="' + (active === 'drawings' ? 'on' : '') + '" onclick="location.hash=\'#/drawings\'">📐 Drawings</button></div>';
 }
 
 function renderHome() {
@@ -219,6 +220,7 @@ function openRoom(k, ref) {
     h += '<h2 class="sec">Material Mockup Samples</h2>' + renderMaterialMockups(k, d);
     h += '<h2 class="sec">FF&amp;E List</h2>' + renderFFE(k, d);
     h += '<h2 class="sec">Reference Documents</h2>' + renderRoomDocs(k, d);
+    if (window.Refs) h += '<h2 class="sec">AutoCAD drawings</h2>' + Refs.section(d.baseLevel);
     h += '<button class="btn ghost" onclick="printRoom(\'' + k + '\')">🖨 Export storyboard PDF</button>';
   }
   app.innerHTML = h;

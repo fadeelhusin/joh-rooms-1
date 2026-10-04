@@ -1,4 +1,5 @@
 const CACHE = 'joh-storyboard-v12';
+const DWG_CACHE = 'joh-dwg-v1';
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +9,7 @@ const ASSETS = [
   "./viewer.js",
   "./app.js",
   "./sitecam.js",
+  "./refs.js",
   "./locations.js",
   "./grids.js",
   "./grid.js",
@@ -449,12 +451,16 @@ self.addEventListener('install', e => {
   );
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE && k !== DWG_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
+  if (url.pathname.endsWith('.dwg')) {           // drawings: whatever is saved offline, else network
+    e.respondWith(caches.open(DWG_CACHE).then(c => c.match(url.href)).then(h => h || fetch(e.request)));
+    return;
+  }
   const isApp = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || url.pathname.endsWith('sw.js');
   const isData = url.pathname.indexOf('/data/') >= 0;
   if (isData) {
