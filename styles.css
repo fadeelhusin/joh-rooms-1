@@ -448,3 +448,4 @@ details.fin-s .body{padding:4px 12px 10px}
 .rfi-file{display:block;padding:5px 0;font-size:13.5px;color:var(--brass-deep);text-decoration:none;word-break:break-word}
 .rfi-thumb{max-width:100%;max-height:220px;display:block;margin:0 auto 8px;border-radius:var(--radius-lg)}
 .rfi-pre{white-space:pre-wrap;font-size:11.5px;max-height:200px;overflow:auto;background:var(--paper);padding:8px;border-radius:var(--radius)}
+body.rfi-drop #app{outline:3px dashed var(--brass);outline-offset:-6px}

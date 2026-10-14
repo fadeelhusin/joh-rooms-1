@@ -37,18 +37,49 @@
     var m = String(t).match(/^\s*(?:(?:JCD-OPE-MBL-QUA-)?RFI[\s\-_.#:]*)?0*(\d{1,6})\s*$/i);
     return m ? +m[1] : null;
   }
+  /* Query -> list of matchers (each a function of the row's text).
+     "level 3", "L3", "L-03", "lvl 3" all match L03 / Level 03 / level-3 in the log;
+     "basement 1" / "b1" / "p-1" match each other; other words match as parts of words. */
+  function matchers(t) {
+    var list = [], q = ' ' + t.toLowerCase() + ' ';
+    var lvRe = function (n) { return new RegExp('(?:\\blevel|\\blvl|\\blv|\\bl)\\s*[-_.:]?\\s*0*' + n + '(?!\\d)', 'i'); };
+    var bRe = function (n) { return new RegExp('(?:\\bbasement\\s*[-_.]?\\s*0*' + n + '|\\bb\\s*[-_.]?\\s*0*' + n + '|\\bp\\s*[-_.]\\s*0*' + n + ')(?!\\d)', 'i'); };
+    q = q.replace(/(?:\blevel|\blvl|\blv|\bl)\s*[-_.:]?\s*0*(\d{1,2})(?!\d)/g, function (_, n) {
+      var re = lvRe(+n); list.push({ label: 'level ' + n, test: function (h) { return re.test(h); } }); return ' ';
+    });
+    q = q.replace(/(?:\bbasement|\bb|\bp\s*[-_.])\s*[-_.]?\s*0*(\d)(?!\d)/g, function (_, n) {
+      var re = bRe(+n); list.push({ label: 'B' + n, test: function (h) { return re.test(h); } }); return ' ';
+    });
+    q.split(/[^\w؀-ۿ.\-\/+]+/).forEach(function (w) {
+      w = w.replace(/^[.\-\/+]+|[.\-\/+]+$/g, '');
+      if (w) list.push({ label: w, test: function (h) { return h.indexOf(w) >= 0; } });
+    });
+    return list;
+  }
   function textSearch(t, act) {
     var n = numberIn(t);
     if (n != null) return BY_NO[n] ? [BY_NO[n]] : [];
-    var words = t.toLowerCase().split(/[^\w؀-ۿ.\-\/+]+/).filter(Boolean);
-    var out = [];
+    var ms = matchers(t), all = [], hits = [], df = ms.map(function () { return 0; });
+    if (!ms.length) return [];
     for (var i = 0; i < ROWS.length; i++) {
       if (act && ROWS[i][C.action] !== act) continue;
-      var h = HAY[i], ok = true;
-      for (var j = 0; j < words.length; j++) if (h.indexOf(words[j]) < 0) { ok = false; break; }
-      if (ok) out.push(ROWS[i]);
+      var got = [];
+      for (var j = 0; j < ms.length; j++) if (ms[j].test(HAY[i])) { got.push(j); df[j]++; }
+      if (got.length === ms.length) all.push(ROWS[i]);
+      else if (got.length) hits.push([got, ROWS[i]]);
     }
-    return out;
+    if (all.length || ms.length === 1) return all;
+    // Closest matches: rare words (e.g. "gypsum") count more than common ones ("part 05", "level 4").
+    var w = df.map(function (d) { return Math.log((ROWS.length + 1) / (d + 1)); });
+    var total = w.reduce(function (a, b) { return a + b; }, 0), some = [];
+    hits.forEach(function (h) {
+      var s = h[0].reduce(function (a, j) { return a + w[j]; }, 0);
+      if (s >= total * 0.4) some.push([s, h[1]]);
+    });
+    some.sort(function (a, b) { return b[0] - a[0] || b[1][C.rfi] - a[1][C.rfi]; });
+    var res = some.map(function (x) { return x[1]; });
+    res.partial = true;                         // no RFI has every word: closest matches
+    return res;
   }
 
   /* OCR text -> RFI numbers. Tolerates common OCR slips (O->0, I/l->1, S->5). */
@@ -114,7 +145,8 @@
     t = (t || '').trim();
     if (!t && !act) return show([], '');
     var list = t ? textSearch(t, act) : ROWS.filter(function (r) { return r[C.action] === act; });
-    show(list, list.length + ' RFI' + (list.length === 1 ? '' : 's'));
+    show(list, list.partial ? 'No RFI has all of those words — closest matches (' + list.length + '):'
+                            : list.length + ' RFI' + (list.length === 1 ? '' : 's'));
   }
 
   /* ---------- image search ---------- */
@@ -149,6 +181,29 @@
       URL.revokeObjectURL(prev);
     }).catch(function (err) { WORKER = null; st('Image search failed: ' + ((err && err.message) || err || 'unknown error') + ' — try again.'); });
   }
+  /* Paste a screenshot (Ctrl+V / long-press → Paste) or drop an image anywhere on the RFI page. */
+  function onRfiPage() { return /^#\/rfi(\/|$)/.test(location.hash); }
+  function imageFrom(items) {
+    for (var i = 0; items && i < items.length; i++) {
+      var it = items[i];
+      if (it.kind === 'file' && /^image\//.test(it.type)) return it.getAsFile();
+      if (it instanceof File && /^image\//.test(it.type)) return it;
+    }
+    return null;
+  }
+  window.addEventListener('paste', function (ev) {
+    if (!onRfiPage()) return;
+    var f = imageFrom(ev.clipboardData && ev.clipboardData.items);
+    if (f) { ev.preventDefault(); fromImage(f); }
+  });
+  window.addEventListener('dragover', function (ev) { if (onRfiPage()) { ev.preventDefault(); document.body.classList.add('rfi-drop'); } });
+  window.addEventListener('dragleave', function (ev) { if (!ev.relatedTarget) document.body.classList.remove('rfi-drop'); });
+  window.addEventListener('drop', function (ev) {
+    document.body.classList.remove('rfi-drop');
+    if (!onRfiPage()) return;
+    var dt = ev.dataTransfer, f = dt && (imageFrom(dt.items) || imageFrom(dt.files));
+    if (f) { ev.preventDefault(); fromImage(f); }
+  });
   var WORKER = null, OCR_STATUS = function () {};
   function ocrWorker() {                       // one OCR worker, created on first use and reused
     if (!WORKER) WORKER = loadOcr().then(function () {
@@ -164,7 +219,7 @@
     var q0 = arg || '';
     app.innerHTML = libSwitch('rfi') +
       '<div class="eyebrow" style="padding:8px 2px 0">Opera House · Request for Inspection log</div>' +
-      '<div class="rfi-bar"><input id="rfi-q" type="search" placeholder="RFI no. or words: waterproofing rejected car park…" autocomplete="off" value="' + e(q0) + '">' +
+      '<div class="rfi-bar"><input id="rfi-q" type="search" placeholder="RFI no., description words, level… or paste a screenshot" autocomplete="off" value="' + e(q0) + '">' +
       '<select id="rfi-act"><option value="">Any result</option></select></div>' +
       '<div class="rfi-img"><label class="btn brass">📷 Photo<input type="file" accept="image/*" capture="environment" hidden></label>' +
       '<label class="btn ghost">🖼️ Image<input type="file" accept="image/*" hidden></label>' +
@@ -181,7 +236,8 @@
         history.replaceState(null, '', '#/rfi' + (qi.value.trim() ? '/' + encodeURIComponent(qi.value.trim()) : ''));
       }, 180); };
       qi.addEventListener('input', go); sel.addEventListener('change', go);
-      if (q0) run(q0); else show([], 'Type an RFI number or words, or search with a photo of an RFI sheet.');
+      if (q0) run(q0); else show([], 'Type an RFI number, words from the description or a level (e.g. <b>waterproofing level 3</b>), ' +
+        'or search with a photo — you can also <b>paste a screenshot</b> (Ctrl+V, or long-press → Paste) or drop an image here.');
     }).catch(function (err) {
       document.getElementById('rfi-out').innerHTML = '<div class="emptystate">Could not load the RFI log.<br><span class="small">' + e(err.message) + '</span></div>';
     });
