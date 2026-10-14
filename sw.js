@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v16';
+const CACHE = 'joh-storyboard-v17';
 const DWG_CACHE = 'joh-dwg-v1';
 const HD_CACHE = 'joh-hd-v1';
 const ASSETS = [
@@ -9,6 +9,7 @@ const ASSETS = [
   "./styles.css",
   "./viewer.js",
   "./app.js",
+  "./rfi.js",
   "./sitecam.js",
   "./refs.js",
   "./locations.js",

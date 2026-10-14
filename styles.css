@@ -432,3 +432,19 @@ details.fin-s .body{padding:4px 12px 10px}
 .hd-wrap{height:calc(100vh - 230px);min-height:340px}
 .hd-wrap #pvctl{position:absolute;right:8px;bottom:8px;display:flex;gap:6px;z-index:5}
 .hd-wrap #pvctl button{width:40px;height:40px;border-radius:8px;border:0;background:rgba(255,255,255,.92);font-size:20px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+
+/* ---------- Opera House RFI search (#/rfi, rfi.js) ---------- */
+.rfi-bar{display:flex;gap:8px;margin:8px 0}
+.rfi-bar input{flex:1;min-width:0;font:inherit;font-size:15px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:var(--radius-lg);background:var(--card);color:var(--ink)}
+.rfi-bar select{max-width:38%;font:inherit;font-size:13px;padding:8px;border:1px solid var(--line-strong);border-radius:var(--radius-lg);background:var(--card);color:var(--ink)}
+.rfi-img{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+.rfi-img .btn{cursor:pointer}
+.rfi-note{margin:4px 2px 10px}
+.rfi-card{margin:0 0 10px}
+.rfi-head{font-size:13.5px;margin-bottom:4px;word-break:break-word}
+.rfi-act{font-weight:700}.rfi-act.ok{color:var(--green)}.rfi-act.bad{color:var(--red)}.rfi-act.warn{color:var(--amber)}
+.rfi-desc{font-size:14px;margin:2px 0 4px}
+.rfi-c{font-size:13px;margin-top:4px}
+.rfi-file{display:block;padding:5px 0;font-size:13.5px;color:var(--brass-deep);text-decoration:none;word-break:break-word}
+.rfi-thumb{max-width:100%;max-height:220px;display:block;margin:0 auto 8px;border-radius:var(--radius-lg)}
+.rfi-pre{white-space:pre-wrap;font-size:11.5px;max-height:200px;overflow:auto;background:var(--paper);padding:8px;border-radius:var(--radius)}

@@ -140,10 +140,11 @@ function route() {
   if (parts[0] === 'drawings' && window.Refs) { setTab('library'); app.innerHTML = libSwitch('drawings') + HD.section('') + '<h2 class="sec">AutoCAD files (.dwg)</h2>' + Refs.section(parts[1] || ''); return; }
   if (parts[0] === 'materials' && !parts[1]) { setTab('library'); return renderMaterialsHome(); }
   if (parts[0] === 'material' && parts[1]) { setTab('library'); return openMaterial(parts[1]); }
+  if (parts[0] === 'rfi' && window.RFI) { setTab('library'); return RFI.page(parts.slice(1).join('/')); }
   setTab('library'); renderHome();
 }
 function libSwitch(active) {
-  return '<div class="seg"><button class="' + (active === 'rooms' ? 'on' : '') + '" onclick="location.hash=\'#/library\'">🏛️ Rooms</button><button class="' + (active === 'materials' ? 'on' : '') + '" onclick="location.hash=\'#/materials\'">🧱 Materials</button><button class="' + (active === 'drawings' ? 'on' : '') + '" onclick="location.hash=\'#/drawings\'">📐 Drawings</button></div>';
+  return '<div class="seg"><button class="' + (active === 'rooms' ? 'on' : '') + '" onclick="location.hash=\'#/library\'">🏛️ Rooms</button><button class="' + (active === 'materials' ? 'on' : '') + '" onclick="location.hash=\'#/materials\'">🧱 Materials</button><button class="' + (active === 'drawings' ? 'on' : '') + '" onclick="location.hash=\'#/drawings\'">📐 Drawings</button><button class="' + (active === 'rfi' ? 'on' : '') + '" onclick="location.hash=\'#/rfi\'">📋 RFIs</button></div>';
 }
 
 function renderHome() {
