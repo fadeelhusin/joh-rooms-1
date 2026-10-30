@@ -24,12 +24,6 @@
 <main id="app"><div class="emptystate">Loading room data…</div></main>
 <div id="doc"></div>
 
-<nav id="tabbar" hidden>
-  <button data-tab="site"><span class="ic">📍</span>Site</button>
-  <button data-tab="plan" class="active"><span class="ic">🗺️</span>Plan</button>
-  <button data-tab="lookahead"><span class="ic">📅</span>Look-ahead</button>
-  <button data-tab="library"><span class="ic">📚</span>Library</button>
-</nav>
 
 <script>
 var pdfjsLib = window.pdfjsLib;
@@ -50,6 +44,6 @@ if (window.pdfjsLib) { pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.work
 <script src="sitecam.js"></script>
 <script src="register.js"></script>
 <script src="roompage.js"></script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){var had=!!navigator.serviceWorker.controller;navigator.serviceWorker.register('sw.js').then(function(r){r.update();}).catch(function(){});navigator.serviceWorker.addEventListener('controllerchange',function(){if(had&&!window._rl){window._rl=1;location.reload();}});});}</script>
 </body>
 </html>
