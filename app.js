@@ -59,7 +59,7 @@ function boot() {
   });
 
   loadProgress();
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', function () { route(); });
   route();
 }
 
