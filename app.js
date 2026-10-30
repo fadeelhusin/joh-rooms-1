@@ -210,7 +210,7 @@ function openRoom(k, ref) {
   } else h += '<div class="frame" style="display:flex;align-items:center;justify-content:center;color:#eee;font-size:12.5px;padding:20px;text-align:center">Location not yet mapped on the L' + esc(d.baseLevel) + ' plan.</div>';
   h += '</div>';
   if (!ref) {
-    h += '<div class="sc-actions"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + esc(k) + '\')">📷 Site Photo</button><button class="btn ghost sc-big" onclick="askClaude(\'' + esc(k) + '\')">💬 Claude</button></div>';
+    h += '<div class="sc-actions"><button class="btn brass sc-big" onclick="SiteCam.open(\'' + esc(k) + '\')">📷 Site Photo</button><button class="btn ghost sc-big" onclick="askClaude(\'' + esc(k) + '\')">📊 Room Status</button></div>';
     if (window.HD) h += '<div class="hd-inline"><span class="small">📐 Drawings:</span>' + HD.chips(d.baseLevel, d.custom ? '' : k) + '</div>';
     if (window.Locs && d.custom) h += Locs.roomCard(k, d);
     if (window.Site) h += Site.roomSection(k);
@@ -225,7 +225,7 @@ function openRoom(k, ref) {
     h += '<h2 class="sec">Reference Documents</h2>' + renderRoomDocs(k, d);
     if (window.HD) h += '<h2 class="sec">Drawings</h2>' + HD.section(d.baseLevel, d.custom ? '' : k);
     if (window.Refs) h += '<h2 class="sec">AutoCAD files (.dwg)</h2>' + Refs.section(d.baseLevel);
-    h += '<button class="btn ghost" onclick="askClaude(\'' + esc(k) + '\')">💬 Open in Claude chat</button> ';
+    h += '<button class="btn ghost" onclick="askClaude(\'' + esc(k) + '\')">📊 Room Status</button> ';
     h += '<button class="btn ghost" onclick="printRoom(\'' + k + '\')">🖨 Export storyboard PDF</button>';
   }
   app.innerHTML = h;
@@ -565,7 +565,7 @@ function printRoom(k) {
 
 var Fab = { go: function (fn) { var w = document.getElementById('fabw'); if (w) w.classList.remove('open'); fn(); } };
 
-/* Ask Claude: copy the room details and open the project chat */
+/* Room Status: copy the room details and open the project chat */
 var CLAUDE_CHAT_URL = 'https://claude.ai/code/session_01EPHKLrXaDW8JJ75Q2gcnCW';
 function claudeUrl() { try { return localStorage.getItem('joh_claude_url') || CLAUDE_CHAT_URL; } catch (x) { return CLAUDE_CHAT_URL; } }
 function roomBrief(k) {
@@ -581,11 +581,11 @@ function roomBrief(k) {
   }
   L.push('App link: ' + location.origin + location.pathname + '#/room/' + encodeURIComponent(k));
   L.push('');
-  L.push('Give me this room\'s finishes card (TQ/RFI, shop drawings, IFC, MTS) and update its status:');
+  L.push('ROOM STATUS – search the P4-P5 finishes register (Excel) and our chat for this room: TQ/RFI, shop drawings and codes, IFC finishes, MTS approvals, open actions and site status. Then update it with the notes/photos below:');
   return L.join('\n');
 }
 function askClaude(k) {
-  var t = roomBrief(k), done = function (ok) { toastMsg(ok ? 'Room details copied — paste them in the Claude chat' : 'Copy failed — room code: ' + k); };
+  var t = roomBrief(k), done = function (ok) { toastMsg(ok ? 'Room details copied — paste them in the chat' : 'Copy failed — room code: ' + k); };
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(function () { done(true); }, function () { done(fallbackCopy(t)); });
     else done(fallbackCopy(t));
