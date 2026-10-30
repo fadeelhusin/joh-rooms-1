@@ -7,6 +7,23 @@
     return '<span class="cchip ' + k + '">' + esc(c || '–') + '</span>';
   }
   function lnk(t, u) { return u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t) + '</a>' : esc(t); }
+  var LIB = window.FINISH_LIB || {};
+  function finBlock(label, ifc, ids) {
+    var h = '<div class="card rp-fin"><div class="rp-fin-h"><span class="rp-fin-lab">' + esc(label) + '</span><span class="small">IFC: ' + esc(ifc || '–') + '</span></div>';
+    (ids || []).forEach(function (id) {
+      var f = LIB[id]; if (!f) return;
+      h += '<div class="rp-sys"><div class="rp-sys-t"><b>' + esc(f.code) + '</b> ' + esc(f.t) + '</div>';
+      if (f.m.length) h += '<div class="rp-mts">' + f.m.map(function (m) {
+        var ok = /^Approved/.test(m.s);
+        return '<span class="rp-mt ' + (ok ? 'ok' : 'tbc') + '">' + (m.u ? '<a href="' + esc(m.u) + '" target="_blank" rel="noopener">' + esc(m.c) + '</a>' : esc(m.c)) + ' · ' + esc(m.d) + ' – <i>' + esc(m.s) + '</i></span>';
+      }).join('') + '</div>';
+      h += '<ol class="rp-layers">' + f.l.slice().reverse().map(function (l, i) { return '<li class="' + (i === 0 ? 'top' : '') + '">' + esc(l) + '</li>'; }).join('') + '</ol>';
+      if (f.n) h += '<div class="small rp-note">' + esc(f.n) + '</div>';
+      h += '</div>';
+    });
+    if (!ids || !ids.length) h += '<div class="small rp-note">No system matched – check the IFC room drawing.</div>';
+    return h + '</div>';
+  }
   function partOf(k) { var p = k.charAt(0); return p === '4' ? '004' : p === '5' ? '005' : ROOMS[k] && ROOMS[k].zone || ''; }
 
   /* ---------- routing: plans only ---------- */
@@ -49,8 +66,7 @@
 
     if (r) {
       h += '<div class="rp-scope"><span>Sub-contractor</span><b>' + esc(r.sc) + '</b></div>';
-      h += '<h2 class="sec">Finishes (IFC Room Finishes Schedule)</h2><table class="kv card"><tbody>' +
-        row2('Walls', r.ifc.w) + row2('Floor', r.ifc.f) + row2('Ceiling', r.ifc.c) + '</tbody></table>';
+      h += '<h2 class="sec">Finishes – approved materials &amp; build-up</h2>' + finBlock('Walls', r.ifc.w, r.fx && r.fx.w) + finBlock('Floor', r.ifc.f, r.fx && r.fx.f) + finBlock('Ceiling', r.ifc.c, r.fx && r.fx.c);
       if (r.dr.length) {
         h += '<h2 class="sec">Doors</h2><div class="rp-list">';
         r.dr.forEach(function (x) { h += '<div class="card rp-item"><b>' + esc(x.tag) + ' · ' + esc(x.type) + '</b><span>' + esc([x.fire, x.ac, x.size, x.th].filter(Boolean).join(' · ')) + '</span>' + (x.fin ? '<span class="small">' + esc(x.fin) + '</span>' : '') + (x.hw ? '<span class="small">' + esc(x.hw) + '</span>' : '') + '</div>'; });
