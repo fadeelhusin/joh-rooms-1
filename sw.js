@@ -1,4 +1,4 @@
-const CACHE = 'joh-storyboard-v23';
+const CACHE = 'joh-storyboard-v24';
 const DWG_CACHE = 'joh-dwg-v1';
 const HD_CACHE = 'joh-hd-v1';
 const ASSETS = [

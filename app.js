@@ -581,7 +581,7 @@ function roomBrief(k) {
   }
   L.push('App link: ' + location.origin + location.pathname + '#/room/' + encodeURIComponent(k));
   L.push('');
-  L.push('ROOM STATUS – search the P4-P5 finishes register (Excel) and our chat for this room: TQ/RFI, shop drawings and codes, IFC finishes, MTS approvals, open actions and site status. Reply in English as one clear table (Item | Requirement / Code | Shop Drawing & JCDC Code | MTS / Approval | Status / Action), with every shop drawing, material approval, TQ and document as a clickable link. Also make a Room Status presentation with the location plan, drawing snippets for the room and the key consultant comments. Then update it with the notes/photos below:');
+  L.push('ROOM STATUS – search the P4-P5 finishes register (Excel) and our chat for this room: TQ/RFI, shop drawings and codes, IFC finishes, MTS approvals, open actions and site status. Reply in English as one clear table (Item | Requirement / Code | Shop Drawing & JCDC Code | MTS / Approval | Status / Action), with every shop drawing, material approval, TQ and document as a clickable link. Deliver it as a Room Status HTML page (all links live) with the location plan, drawing snippets for the room and the key consultant comments. Then update it with the notes/photos below:');
   return L.join('\n');
 }
 function askClaude(k) {
