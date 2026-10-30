@@ -316,16 +316,5 @@ var Viewer = (function () {
     }).catch(function () { setStat('drawing not available offline'); if (onStat) onStat(null); });
   }
 
-  function snapshot() {
-    if (!V.cv) return null;
-    var c = document.createElement('canvas'); c.width = V.cv.width; c.height = V.cv.height;
-    var x = c.getContext('2d'); x.drawImage(V.cv, 0, 0);
-    if (V.mode === 'room' && V.mx != null) {
-      var px = (V.mx * V.viewScale + V.tx) * V.dpr, py = (V.my * V.viewScale + V.ty) * V.dpr, rr = 22 * V.dpr;
-      x.lineWidth = 5 * V.dpr; x.strokeStyle = '#c0281c'; x.fillStyle = 'rgba(192,40,28,.18)';
-      x.beginPath(); x.arc(px, py, rr, 0, Math.PI * 2); x.fill(); x.stroke();
-    }
-    return c;
-  }
-  return { snapshot: snapshot, openDoc: openDoc, level: level, panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
+  return { openDoc: openDoc, level: level, panTo: panTo, setAddMode: setAddMode, showTemp: showTemp, centerOn: centerOn, openRoom: openRoom, openBrowse: openBrowse, zoomBy: zoomBy, fitPlan: fitPlan, centerRoom: centerRoom, draw: draw };
 })();
